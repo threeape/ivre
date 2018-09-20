@@ -1543,6 +1543,7 @@ which `predicate()` is True, given `webflt`.
         distinct = 0
         maxcount = 0
         for line in proc.stdout:
+            print(u"XXX", repr(line))
             distinct += 1
             count = int(line.split()[1])
             if count > maxcount:
