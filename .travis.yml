@@ -15,7 +15,7 @@
 # along with IVRE. If not, see <http://www.gnu.org/licenses/>.
 
 sudo: required
-dist: trusty
+dist: xenial
 
 env:
   # PostgreSQL 10.1, 9.6.6, 9.5.10
@@ -49,6 +49,7 @@ python:
   - 3.4
   - 3.5
   - 3.6
+  - 3.7
 
 # PhantomJS is supposed to be installed
 # (https://docs.travis-ci.com/user/gui-and-headless-browsers/#Using-PhantomJS),
