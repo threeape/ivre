@@ -1638,6 +1638,11 @@ which `predicate()` is True, given `webflt`.
         res = RUN(["ivre", "ipdata", "--download"])[0]
         self.assertEqual(res, 0)
 
+        print("GEOIP_PATH:", ivre.config.GEOIP_PATH)
+        subprocess.call(['ls', ivre.config.GEOIP_PATH])
+        print(getattr(ivre.db.db.data, "_db_country", None))
+        print()
+
         if DATABASE != "maxmind":
             print(u"Database files have been downloaded -- "
                   u"other data tests won't run")
@@ -1743,19 +1748,28 @@ which `predicate()` is True, given `webflt`.
         # Start a Web server to test CGI
         self.start_web_server()
         # Web API (JSON) vs Python API
+        print("GEOIP_PATH:", ivre.config.GEOIP_PATH)
+        subprocess.call(['ls', ivre.config.GEOIP_PATH])
+        print(getattr(ivre.db.db.data, "_db_country", None))
+        print()
+
         for addr in ['8.8.8.8', '2003::1']:
             req = Request('http://%s:%d/cgi/ipdata/%s' % (HTTPD_HOSTNAME,
                                                           HTTPD_PORT, addr))
             req.add_header('Referer', 'http://%s:%d/' % (HTTPD_HOSTNAME, HTTPD_PORT))
             udesc = urlopen(req)
             self.assertEquals(udesc.getcode(), 200)
-            result = ivre.db.db.data.infos_byip(addr)
-            if result and 'coordinates' in result:
-                result['coordinates'] = list(result['coordinates'])
-            self.assertEqual(
-                result,
-                json.loads(udesc.read().decode()),
-            )
+            result_py = ivre.db.db.data.infos_byip(addr)
+            if result_py and 'coordinates' in result_py:
+                result_py['coordinates'] = list(result_py['coordinates'])
+            result_web = json.loads(udesc.read().decode())
+            print("XXX DEBUG PY:", result_py)
+            print("XXX DEBUG WEB:", result_web)
+            print("XXX DEBUG DATABASES:", [
+                getattr(ivre.db.db.data, x) for x in dir(ivre.db.db.data)
+                if x.startswith('_db_')
+            ])
+            self.assertEqual(result_py, result_web)
 
     def test_utils(self):
         """Functions that have not yet been tested"""
