@@ -22,6 +22,7 @@ import math
 
 import matplotlib
 import matplotlib.pyplot
+
 # from mpl_toolkits.mplot3d import Axes3D
 from mpl_toolkits.mplot3d import axes3d, Axes3D  # noqa: F401 (needed)
 
@@ -30,14 +31,14 @@ from ivre import db
 
 
 def graphhost(ap):
-    if 'ports' not in ap:
+    if "ports" not in ap:
         return [], []
     hh, pp = [], []
-    an = ap['addr']
-    ap = ap['ports']
+    an = ap["addr"]
+    ap = ap["ports"]
     for p in ap:
-        pn = p['port']
-        if p.get('state_state') == 'open':
+        pn = p["port"]
+        if p.get("state_state") == "open":
             hh.append(an)
             pp.append(pn)
     return hh, pp
@@ -56,17 +57,26 @@ def getgraph(flt=db.db.nmap.flt_empty):
 def graph3d(mainflt=db.db.nmap.flt_empty, alertflt=None):
     h, p = getgraph(flt=mainflt)
     fig = matplotlib.pyplot.figure()
-    if matplotlib.__version__.startswith('0.99'):
+    if matplotlib.__version__.startswith("0.99"):
         ax = Axes3D(fig)
     else:
-        ax = fig.add_subplot(111, projection='3d')
-    ax.plot([x / 65535 for x in h], [x % 65535 for x in h],
-            [math.log(x, 10) for x in p], '.')
+        ax = fig.add_subplot(111, projection="3d")
+    ax.plot(
+        [x / 65535 for x in h],
+        [x % 65535 for x in h],
+        [math.log(x, 10) for x in p],
+        ".",
+    )
     if alertflt is not None:
         h, p = getgraph(flt=db.db.nmap.flt_and(mainflt, alertflt))
         if h:
-            ax.plot([x / 65535 for x in h], [x % 65535 for x in h],
-                    [math.log(x, 10) for x in p], '.', c='r')
+            ax.plot(
+                [x / 65535 for x in h],
+                [x % 65535 for x in h],
+                [math.log(x, 10) for x in p],
+                ".",
+                c="r",
+            )
     matplotlib.pyplot.show()
 
 
@@ -74,42 +84,53 @@ def graph2d(mainflt=db.db.nmap.flt_empty, alertflt=None):
     h, p = getgraph(flt=mainflt)
     fig = matplotlib.pyplot.figure()
     ax = fig.add_subplot(111)
-    ax.semilogy(h, p, '.')
+    ax.semilogy(h, p, ".")
     if alertflt is not None:
         h, p = getgraph(flt=db.db.nmap.flt_and(mainflt, alertflt))
         if h:
-            ax.semilogy(h, p, '.', c='r')
+            ax.semilogy(h, p, ".", c="r")
     matplotlib.pyplot.show()
 
 
 def main():
     try:
         import argparse
+
         parser = argparse.ArgumentParser(
-            description='Plot scan results.',
-            parents=[db.db.nmap.argparser])
+            description="Plot scan results.", parents=[db.db.nmap.argparser]
+        )
     except ImportError:
         import optparse
-        parser = optparse.OptionParser(description='Plot scan results.')
+
+        parser = optparse.OptionParser(description="Plot scan results.")
         for args, kargs in db.db.nmap.argparser.args:
             parser.add_option(*args, **kargs)
         parser.parse_args_orig = parser.parse_args
         parser.parse_args = lambda: parser.parse_args_orig()[0]
         parser.add_argument = parser.add_option
-    parser.add_argument('--2d', '-2', action='store_const',
-                        dest='graph',
-                        const=graph2d,
-                        default=graph3d)
-    parser.add_argument('--3d', '-3', action='store_const',
-                        dest='graph',
-                        const=graph3d)
-    parser.add_argument('--alert-445', action='store_const',
-                        dest='alertflt',
-                        const=db.db.nmap.searchxp445(),
-                        default=db.db.nmap.searchhttpauth())
-    parser.add_argument('--alert-nfs', action='store_const',
-                        dest='alertflt',
-                        const=db.db.nmap.searchnfs())
+    parser.add_argument(
+        "--2d",
+        "-2",
+        action="store_const",
+        dest="graph",
+        const=graph2d,
+        default=graph3d,
+    )
+    parser.add_argument(
+        "--3d", "-3", action="store_const", dest="graph", const=graph3d
+    )
+    parser.add_argument(
+        "--alert-445",
+        action="store_const",
+        dest="alertflt",
+        const=db.db.nmap.searchxp445(),
+        default=db.db.nmap.searchhttpauth(),
+    )
+    parser.add_argument(
+        "--alert-nfs",
+        action="store_const",
+        dest="alertflt",
+        const=db.db.nmap.searchnfs(),
+    )
     args = parser.parse_args()
-    args.graph(mainflt=db.db.nmap.parse_args(args),
-               alertflt=args.alertflt)
+    args.graph(mainflt=db.db.nmap.parse_args(args), alertflt=args.alertflt)

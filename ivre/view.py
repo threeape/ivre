@@ -27,88 +27,104 @@ from ivre.db import db
 
 def _extract_passive_HTTP_CLIENT_HEADER_SERVER(rec):
     """Handle http client header about server."""
-    return {'ports': [{
-        'state_state': 'open',
-        'state_reason': "passive",
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
-        'service_name': 'http',
-    }]}
+    return {
+        "ports": [
+            {
+                "state_state": "open",
+                "state_reason": "passive",
+                "port": rec["port"],
+                "protocol": rec.get("protocol", "tcp"),
+                "service_name": "http",
+            }
+        ]
+    }
     # TODO: (?) handle Host: header for DNS
     # FIXME: catches ip addresses as domain name.
-    if 'source' in rec and rec['source'] == 'HOST':
-        values = rec['value'].split(".")
+    if "source" in rec and rec["source"] == "HOST":
+        values = rec["value"].split(".")
         domains = [values.pop()]
         while values:
             domains.insert(0, values.pop() + "." + domains[0])
-        return {'hostnames': [{'domains': domains,
-                               'type': "?",
-                               'name': domains[0]}]}
+        return {
+            "hostnames": [
+                {"domains": domains, "type": "?", "name": domains[0]}
+            ]
+        }
 
 
 def _extract_passive_HTTP_SERVER_HEADER(rec):
     """Handle http server headers."""
     port = {
-        'state_state': 'open',
-        'state_reason': "passive",
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
-        'service_name': 'http',
+        "state_state": "open",
+        "state_reason": "passive",
+        "port": rec["port"],
+        "protocol": rec.get("protocol", "tcp"),
+        "service_name": "http",
     }
     # TODO: handle other header values and merge them
-    if rec.get('source') != 'SERVER':
-        return {'ports': [port]}
-    value = rec['value']
-    script = {'id': 'http-server-header', 'output': value}
-    port['scripts'] = [script]
-    banner = (b"HTTP/1.1 200 OK\r\nServer: " + utils.nmap_decode_data(value) +
-              b"\r\n\r\n")
-    port.update(
-        utils.match_nmap_svc_fp(output=banner,
-                                proto=rec.get('protocol', 'tcp'),
-                                probe="GetRequest")
+    if rec.get("source") != "SERVER":
+        return {"ports": [port]}
+    value = rec["value"]
+    script = {"id": "http-server-header", "output": value}
+    port["scripts"] = [script]
+    banner = (
+        b"HTTP/1.1 200 OK\r\nServer: "
+        + utils.nmap_decode_data(value)
+        + b"\r\n\r\n"
     )
-    return {'ports': [port]}
+    port.update(
+        utils.match_nmap_svc_fp(
+            output=banner, proto=rec.get("protocol", "tcp"), probe="GetRequest"
+        )
+    )
+    return {"ports": [port]}
 
 
 def _extract_passive_HTTP_CLIENT_HEADER(rec):
     """Handle http client headers."""
     # TODO: handle other header values
-    if rec.get('source') != 'USER-AGENT':
+    if rec.get("source") != "USER-AGENT":
         return {}
-    return {'ports': [{
-        'port': -1,
-        'scripts': [{'id': 'http-user-agent',
-                     'output': rec['value'],
-                     'http-user-agent': [rec['value']]}],
-    }]}
+    return {
+        "ports": [
+            {
+                "port": -1,
+                "scripts": [
+                    {
+                        "id": "http-user-agent",
+                        "output": rec["value"],
+                        "http-user-agent": [rec["value"]],
+                    }
+                ],
+            }
+        ]
+    }
 
 
 def _extract_passive_TCP_SERVER_BANNER(rec):
     """Handle banners from tcp servers."""
-    value = rec['value']
-    if rec['recontype'] == 'SSH_SERVER':
+    value = rec["value"]
+    if rec["recontype"] == "SSH_SERVER":
         value += "\r\n"
     port = {
-        'state_state': 'open',
-        'state_reason': "passive",
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
-        'scripts': [{"id": "banner",
-                     "output": value}],
+        "state_state": "open",
+        "state_reason": "passive",
+        "port": rec["port"],
+        "protocol": rec.get("protocol", "tcp"),
+        "scripts": [{"id": "banner", "output": value}],
     }
-    port.update(rec.get('infos', {}))
+    port.update(rec.get("infos", {}))
     port.update(
-        utils.match_nmap_svc_fp(output=utils.nmap_decode_data(value),
-                                proto=rec.get('protocol', 'tcp'),
-                                probe="NULL")
+        utils.match_nmap_svc_fp(
+            output=utils.nmap_decode_data(value),
+            proto=rec.get("protocol", "tcp"),
+            probe="NULL",
+        )
     )
-    return {'ports': [port]}
+    return {"ports": [port]}
 
 
-_KEYS = {
-    'ecdsa-sha2-nistp256': 'ECDSA',
-}
+_KEYS = {"ecdsa-sha2-nistp256": "ECDSA"}
 
 
 def _extract_passive_SSH_SERVER_HOSTKEY(rec):
@@ -117,49 +133,59 @@ def _extract_passive_SSH_SERVER_HOSTKEY(rec):
     # entry per key type.
     #
     # (MAYBE) we should add a "lastseen" tag to every intel in view.
-    value = utils.encode_b64(
-        utils.nmap_decode_data(rec['value'])
-    ).decode()
-    fingerprint = rec['infos']['md5']
-    key = {'type': rec['infos']['algo'],
-           'key': value,
-           'fingerprint': fingerprint}
-    if 'bits' in rec['infos']:  # FIXME
-        key['bits'] = rec['infos']['bits']
+    value = utils.encode_b64(utils.nmap_decode_data(rec["value"])).decode()
+    fingerprint = rec["infos"]["md5"]
+    key = {
+        "type": rec["infos"]["algo"],
+        "key": value,
+        "fingerprint": fingerprint,
+    }
+    if "bits" in rec["infos"]:  # FIXME
+        key["bits"] = rec["infos"]["bits"]
     fingerprint = utils.decode_hex(fingerprint)
     script = {
-        'id': 'ssh-hostkey', 'ssh-hostkey': [key],
-        'output': '\n  %s %s (%s)\n%s %s' % (
-            key.get('bits', '-'),  # FIXME
-            ':'.join('%02x' % (
-                ord(i) if isinstance(i, (bytes, str)) else i
-            ) for i in fingerprint),
-            _KEYS.get(
-                key['type'],
-                (key['type'][4:] if key['type'][:4] == 'ssh-'
-                 else key['type']).upper()
+        "id": "ssh-hostkey",
+        "ssh-hostkey": [key],
+        "output": "\n  %s %s (%s)\n%s %s"
+        % (
+            key.get("bits", "-"),  # FIXME
+            ":".join(
+                "%02x" % (ord(i) if isinstance(i, (bytes, str)) else i)
+                for i in fingerprint
             ),
-            key['type'],
-            value
+            _KEYS.get(
+                key["type"],
+                (
+                    key["type"][4:]
+                    if key["type"][:4] == "ssh-"
+                    else key["type"]
+                ).upper(),
+            ),
+            key["type"],
+            value,
         ),
-        'key': key
+        "key": key,
     }
-    return {'ports': [{
-        'state_state': 'open',
-        'state_reason': "passive",
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
-        'service_name': 'ssh',
-        'scripts': [script],
-    }]}
+    return {
+        "ports": [
+            {
+                "state_state": "open",
+                "state_reason": "passive",
+                "port": rec["port"],
+                "protocol": rec.get("protocol", "tcp"),
+                "service_name": "ssh",
+                "scripts": [script],
+            }
+        ]
+    }
 
 
 def _extract_passive_SSL_SERVER(rec):
     """Handle ssl server headers."""
-    source = rec.get('source')
-    if source == 'cert':
+    source = rec.get("source")
+    if source == "cert":
         return _extract_passive_SSL_SERVER_cert(rec)
-    if source.startswith('ja3-'):
+    if source.startswith("ja3-"):
         return _extract_passive_SSL_SERVER_ja3(rec)
     return {}
 
@@ -167,85 +193,90 @@ def _extract_passive_SSL_SERVER(rec):
 def _extract_passive_SSL_SERVER_cert(rec):
     script = {"id": "ssl-cert"}
     port = {
-        'state_state': 'open',
-        'state_reason': "passive",
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
+        "state_state": "open",
+        "state_reason": "passive",
+        "port": rec["port"],
+        "protocol": rec.get("protocol", "tcp"),
     }
-    output, info = create_ssl_cert(rec['value'], b64encoded=False)
+    output, info = create_ssl_cert(rec["value"], b64encoded=False)
     if info:
-        script['output'] = "\n".join(output)
-        script['ssl-cert'] = info
-        port['scripts'] = [script]
-    return {'ports': [port]}
+        script["output"] = "\n".join(output)
+        script["ssl-cert"] = info
+        port["scripts"] = [script]
+    return {"ports": [port]}
 
 
 def _extract_passive_SSL_SERVER_ja3(rec):
     script = {"id": "ssl-ja3-server"}
     port = {
-        'state_state': 'open',
-        'state_reason': 'passive',
-        'port': rec['port'],
-        'protocol': rec.get('protocol', 'tcp'),
+        "state_state": "open",
+        "state_reason": "passive",
+        "port": rec["port"],
+        "protocol": rec.get("protocol", "tcp"),
     }
-    script['output'] = rec['value'] + ' - ' + rec['source'][4:]
+    script["output"] = rec["value"] + " - " + rec["source"][4:]
     info = {
-        'raw': rec['infos']['raw'],
-        'sha256': rec['infos']['sha256'],
-        'sha1': rec['infos']['sha1'],
-        'md5': rec['value'],
-        'client': {
-            'raw': rec['infos']['client']['raw'],
-            'sha256': rec['infos']['client']['sha256'],
-            'sha1': rec['infos']['client']['sha1'],
-            'md5': rec['source'][4:]
-        }
+        "raw": rec["infos"]["raw"],
+        "sha256": rec["infos"]["sha256"],
+        "sha1": rec["infos"]["sha1"],
+        "md5": rec["value"],
+        "client": {
+            "raw": rec["infos"]["client"]["raw"],
+            "sha256": rec["infos"]["client"]["sha256"],
+            "sha1": rec["infos"]["client"]["sha1"],
+            "md5": rec["source"][4:],
+        },
     }
-    script['ssl-ja3-server'] = [info]
-    port['scripts'] = [script]
-    return {'ports': [port]}
+    script["ssl-ja3-server"] = [info]
+    port["scripts"] = [script]
+    return {"ports": [port]}
 
 
 def _extract_passive_DNS_ANSWER(rec):
     """Handle dns server headers."""
-    name = rec['value']
-    domains = rec['infos']['domain']
-    return {'hostnames': [{'domains': domains,
-                           'type': rec['source'].split('-', 1)[0],
-                           'name': name}]}
+    name = rec["value"]
+    domains = rec["infos"]["domain"]
+    return {
+        "hostnames": [
+            {
+                "domains": domains,
+                "type": rec["source"].split("-", 1)[0],
+                "name": name,
+            }
+        ]
+    }
 
 
 def _extract_passive_SSL_CLIENT(rec):
     """Handle SSL client ja3 extraction."""
     script = {"id": "ssl-ja3-client"}
-    script['output'] = rec['value']
-    script['ssl-ja3-client'] = [{
-        'raw': rec['infos']['raw'],
-        'sha256': rec['infos']['sha256'],
-        'sha1': rec['infos']['sha1'],
-        'md5': rec['value']
-    }]
+    script["output"] = rec["value"]
+    script["ssl-ja3-client"] = [
+        {
+            "raw": rec["infos"]["raw"],
+            "sha256": rec["infos"]["sha256"],
+            "sha1": rec["infos"]["sha1"],
+            "md5": rec["value"],
+        }
+    ]
 
-    port = {
-        'port': -1,
-        'scripts': [script]
-    }
+    port = {"port": -1, "scripts": [script]}
 
-    return {'ports': [port]}
+    return {"ports": [port]}
 
 
 _EXTRACTORS = {
     # 'HTTP_CLIENT_HEADER_SERVER': _extract_passive_HTTP_CLIENT_HEADER_SERVER,
-    'HTTP_CLIENT_HEADER': _extract_passive_HTTP_CLIENT_HEADER,
-    'HTTP_SERVER_HEADER': _extract_passive_HTTP_SERVER_HEADER,
-    'SSL_SERVER': _extract_passive_SSL_SERVER,
-    'SSL_CLIENT': _extract_passive_SSL_CLIENT,
+    "HTTP_CLIENT_HEADER": _extract_passive_HTTP_CLIENT_HEADER,
+    "HTTP_SERVER_HEADER": _extract_passive_HTTP_SERVER_HEADER,
+    "SSL_SERVER": _extract_passive_SSL_SERVER,
+    "SSL_CLIENT": _extract_passive_SSL_CLIENT,
     # FIXME: see db/prostgres while hostnames are not merged, it is useless
     # to add DNS answers. It creates empty results.
-    'DNS_ANSWER': _extract_passive_DNS_ANSWER,
-    'SSH_SERVER': _extract_passive_TCP_SERVER_BANNER,
-    'SSH_SERVER_HOSTKEY': _extract_passive_SSH_SERVER_HOSTKEY,
-    'TCP_SERVER_BANNER': _extract_passive_TCP_SERVER_BANNER,
+    "DNS_ANSWER": _extract_passive_DNS_ANSWER,
+    "SSH_SERVER": _extract_passive_TCP_SERVER_BANNER,
+    "SSH_SERVER_HOSTKEY": _extract_passive_SSH_SERVER_HOSTKEY,
+    "TCP_SERVER_BANNER": _extract_passive_TCP_SERVER_BANNER,
 }
 
 
@@ -258,38 +289,39 @@ def passive_record_to_view(rec):
 
     """
     rec = dict(rec)
-    if not rec.get('addr'):
+    if not rec.get("addr"):
         return
     outrec = {
-        'addr': rec["addr"],
-        'state_reason': 'passive',
-        'schema_version': SCHEMA_VERSION,
+        "addr": rec["addr"],
+        "state_reason": "passive",
+        "schema_version": SCHEMA_VERSION,
     }
     # a DNS_ANSWER record is not enough to mark a host as up
-    if rec['recontype'] != 'DNS_ANSWER':
-        outrec['state'] = 'up'
-    sensor = rec.get('sensor')
+    if rec["recontype"] != "DNS_ANSWER":
+        outrec["state"] = "up"
+    sensor = rec.get("sensor")
     if sensor:
-        outrec['source'] = [sensor]
+        outrec["source"] = [sensor]
     try:
-        outrec['starttime'] = datetime.fromtimestamp(rec["firstseen"])
-        outrec['endtime'] = datetime.fromtimestamp(rec["lastseen"])
+        outrec["starttime"] = datetime.fromtimestamp(rec["firstseen"])
+        outrec["endtime"] = datetime.fromtimestamp(rec["lastseen"])
     except TypeError:
-        outrec['starttime'] = rec['firstseen']
-        outrec['endtime'] = rec['lastseen']
-    function = _EXTRACTORS.get(rec['recontype'], lambda _: {})
+        outrec["starttime"] = rec["firstseen"]
+        outrec["endtime"] = rec["lastseen"]
+    function = _EXTRACTORS.get(rec["recontype"], lambda _: {})
     if isinstance(function, dict):
-        function = function.get(rec['source'], lambda _: {})
+        function = function.get(rec["source"], lambda _: {})
     outrec.update(function(rec))
-    openports = outrec['openports'] = {'count': 0}
-    for port in outrec.get('ports', []):
-        if port.get('state_state') != 'open':
+    openports = outrec["openports"] = {"count": 0}
+    for port in outrec.get("ports", []):
+        if port.get("state_state") != "open":
             continue
-        openports['count'] += 1
-        protoopenports = openports.setdefault(port['protocol'],
-                                              {'count': 0, 'ports': []})
-        protoopenports['count'] += 1
-        protoopenports['ports'].append(port['port'])
+        openports["count"] += 1
+        protoopenports = openports.setdefault(
+            port["protocol"], {"count": 0, "ports": []}
+        )
+        protoopenports["count"] += 1
+        protoopenports["ports"].append(port["port"])
     return outrec
 
 
@@ -314,18 +346,20 @@ def from_passive(flt):
     cur_rec = None
     for rec in records:
         if cur_addr is None:
-            cur_addr = rec['addr']
+            cur_addr = rec["addr"]
             cur_rec = rec
-        elif cur_addr != rec['addr']:
+        elif cur_addr != rec["addr"]:
             # TODO: add_addr_info should be optional
-            cur_rec['infos'] = {}
-            for func in [db.data.country_byip,
-                         db.data.as_byip,
-                         db.data.location_byip]:
-                cur_rec['infos'].update(func(cur_addr) or {})
+            cur_rec["infos"] = {}
+            for func in [
+                db.data.country_byip,
+                db.data.as_byip,
+                db.data.location_byip,
+            ]:
+                cur_rec["infos"].update(func(cur_addr) or {})
             yield cur_rec
             cur_rec = rec
-            cur_addr = rec['addr']
+            cur_addr = rec["addr"]
         else:
             cur_rec = db.view.merge_host_docs(cur_rec, rec)
     if cur_rec is not None:
@@ -336,13 +370,13 @@ def nmap_record_to_view(rec):
     """Convert an nmap result in view.
 
     """
-    if 'scanid' in rec:
-        del rec['scanid']
-    if 'source' in rec:
-        if not rec['source']:
-            rec['source'] = []
-        elif not isinstance(rec['source'], list):
-            rec['source'] = [rec['source']]
+    if "scanid" in rec:
+        del rec["scanid"]
+    if "source" in rec:
+        if not rec["source"]:
+            rec["source"] = []
+        elif not isinstance(rec["source"], list):
+            rec["source"] = [rec["source"]]
     return rec
 
 
@@ -352,17 +386,17 @@ def from_nmap(flt):
     cur_rec = None
     result = None
     for rec in db.nmap.get(flt, sort=[("addr", 1)]):
-        if 'addr' not in rec:
+        if "addr" not in rec:
             continue
         rec = nmap_record_to_view(rec)
         if cur_addr is None:
-            cur_addr = rec['addr']
+            cur_addr = rec["addr"]
             cur_rec = rec
             continue
-        if cur_addr != rec['addr']:
+        if cur_addr != rec["addr"]:
             result = cur_rec
             cur_rec = rec
-            cur_addr = rec['addr']
+            cur_addr = rec["addr"]
             yield result
         else:
             cur_rec = db.view.merge_host_docs(cur_rec, rec)
@@ -381,6 +415,7 @@ def to_view(itrs):
         if rec is None:
             return updt
         return db.view.merge_host_docs(rec, updt)
+
     next_recs = []
     # We cannot use a `for itr in itrs` loop here because itrs is
     # modified in the loop.
@@ -395,7 +430,7 @@ def to_view(itrs):
             del itrs[len(next_recs)]  # Do not increment i here
         else:
             i += 1
-    next_addrs = [rec['addr'] for rec in next_recs]
+    next_addrs = [rec["addr"] for rec in next_recs]
     cur_rec = None
     try:
         cur_addr = min(next_addrs, key=utils.ip2int)
@@ -416,7 +451,7 @@ def to_view(itrs):
                     del next_recs[i]
                     del itrs[i]
                     continue  # Do not increment i here
-                next_addrs[i] = next_recs[i]['addr']
+                next_addrs[i] = next_recs[i]["addr"]
             i += 1
         if next_addrs and cur_addr not in next_addrs:
             yield cur_rec

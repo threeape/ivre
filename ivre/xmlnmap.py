@@ -47,7 +47,7 @@ SCHEMA_VERSION = 11
 
 # Scripts that mix elem/table tags with and without key attributes,
 # which is not supported for now
-IGNORE_TABLE_ELEMS = set(['xmpp-info', 'sslv2', 'sslv2-drown'])
+IGNORE_TABLE_ELEMS = set(["xmpp-info", "sslv2", "sslv2-drown"])
 
 ALIASES_TABLE_ELEMS = {
     # ls unified output (ls NSE module + ftp-anon)
@@ -134,13 +134,16 @@ ALIASES_TABLE_ELEMS = {
     "tls-ticketbleed": "vulns",
 }
 
-SCREENSHOT_PATTERN = re.compile('^ *Saved to (.*)$', re.MULTILINE)
-RTSP_SCREENSHOT_PATTERN = re.compile('^ *Saved [^ ]* to (.*)$', re.MULTILINE)
+SCREENSHOT_PATTERN = re.compile("^ *Saved to (.*)$", re.MULTILINE)
+RTSP_SCREENSHOT_PATTERN = re.compile("^ *Saved [^ ]* to (.*)$", re.MULTILINE)
 
 
 def screenshot_extract(script):
-    fname = (RTSP_SCREENSHOT_PATTERN if script['id'] == 'rtsp-screenshot'
-             else SCREENSHOT_PATTERN).search(script['output'])
+    fname = (
+        RTSP_SCREENSHOT_PATTERN
+        if script["id"] == "rtsp-screenshot"
+        else SCREENSHOT_PATTERN
+    ).search(script["output"])
     return None if fname is None else fname.groups()[0]
 
 
@@ -159,15 +162,22 @@ _MONGODB_DATABASES_TYPES = {
     "totalSizeMb": float,
     "empty": lambda x: _MONGODB_DATABASES_CONVERTS.get(x, x),
     "sizeOnDisk": float,
-    "code": lambda x: (_MONGODB_DATABASES_CONVERTS.get(x, x)
-                       if isinstance(x, basestring) else float(x)),
-    "ok": lambda x: (_MONGODB_DATABASES_CONVERTS.get(x, x)
-                     if isinstance(x, basestring) else float(x)),
+    "code": lambda x: (
+        _MONGODB_DATABASES_CONVERTS.get(x, x)
+        if isinstance(x, basestring)
+        else float(x)
+    ),
+    "ok": lambda x: (
+        _MONGODB_DATABASES_CONVERTS.get(x, x)
+        if isinstance(x, basestring)
+        else float(x)
+    ),
 }
 
 
-def _parse_mongodb_databases_kv(line, out, prefix=None, force_type=None,
-                                value_name=None):
+def _parse_mongodb_databases_kv(
+    line, out, prefix=None, force_type=None, value_name=None
+):
     """Parse 'key = value' lines from mongodb-databases output"""
     try:
         # Line can be 'key =' or 'key = value'
@@ -191,8 +201,7 @@ def _parse_mongodb_databases_kv(line, out, prefix=None, force_type=None,
         assert key not in out
         out[key] = value
     elif isinstance(out, list):
-        out.append({"name": key,
-                    value_name: value})
+        out.append({"name": key, value_name: value})
 
 
 def add_mongodb_databases_data(script):
@@ -233,10 +242,7 @@ def add_mongodb_databases_data(script):
     out = {}
     # Global modes, see MODES[1]
     cur_key = None
-    MODES = {
-        1: {"databases": list, "bad cmd": dict},
-        3: {"shards": list},
-    }
+    MODES = {1: {"databases": list, "bad cmd": dict}, 3: {"shards": list}}
 
     for line in script["output"].split("\n"):
         # Handle mode based on indentation
@@ -290,8 +296,12 @@ def add_mongodb_databases_data(script):
 
         elif indent == 4:
             # Shards information, values are always float
-            _parse_mongodb_databases_kv(line, out["databases"][-1]["shards"],
-                                        force_type=float, value_name="size")
+            _parse_mongodb_databases_kv(
+                line,
+                out["databases"][-1]["shards"],
+                force_type=float,
+                value_name="size",
+            )
             continue
 
         else:
@@ -312,17 +322,20 @@ def add_ls_data(script):
     See https://nmap.org/nsedoc/lib/ls.html
 
     """
+
     def notimplemented(script):
-        utils.LOGGER.warning("Migration not implemented for script %r",
-                             script['id'])
+        utils.LOGGER.warning(
+            "Migration not implemented for script %r", script["id"]
+        )
         raise NotImplementedError
+
     return {
         "smb-ls": add_smb_ls_data,
         "nfs-ls": add_nfs_ls_data,
         "afp-ls": add_afp_ls_data,
         "ftp-anon": add_ftp_anon_data,
         # http-ls has used the "ls" module since the beginning
-    }.get(script['id'], notimplemented)(script)
+    }.get(script["id"], notimplemented)(script)
 
 
 def add_smb_ls_data(script):
@@ -341,16 +354,17 @@ def add_smb_ls_data(script):
     for line in script["output"].splitlines():
         line = line.lstrip()
         if state == 0:  # outside a volume
-            if line.startswith('Directory of '):
+            if line.startswith("Directory of "):
                 if cur_vol is not None:
                     utils.LOGGER.warning(
-                        "cur_vol should be None here [got %r]", cur_vol,
+                        "cur_vol should be None here [got %r]", cur_vol
                     )
                 cur_vol = {"volume": line[13:], "files": []}
                 state = 1  # listing
             elif line:
-                utils.LOGGER.warning("Unexpected line [%r] outside a volume",
-                                     line)
+                utils.LOGGER.warning(
+                    "Unexpected line [%r] outside a volume", line
+                )
         elif state == 1:  # listing
             if line == "Total Files Listed:":
                 state = 2  # total values
@@ -359,8 +373,13 @@ def add_smb_ls_data(script):
                 if size.isdigit():
                     size = int(size)
                     result["total"]["bytes"] += size
-                cur_vol["files"].append({"size": size, "filename": fname,
-                                         'time': "%s %s" % (date, time)})
+                cur_vol["files"].append(
+                    {
+                        "size": size,
+                        "filename": fname,
+                        "time": "%s %s" % (date, time),
+                    }
+                )
                 result["total"]["files"] += 1
         elif state == 2:  # total values
             if line:
@@ -391,19 +410,20 @@ def add_nfs_ls_data(script):
     for line in script["output"].splitlines():
         line = line.lstrip()
         if state == 0:  # outside a volume
-            if line.startswith('NFS Export: '):
+            if line.startswith("NFS Export: "):
                 if cur_vol is not None:
                     utils.LOGGER.warning(
-                        "cur_vol should be None here [got %r]", cur_vol,
+                        "cur_vol should be None here [got %r]", cur_vol
                     )
                 cur_vol = {"volume": line[12:], "files": []}
                 state = 1  # volume info
             # We silently discard any other lines
         elif state == 1:  # volume info
-            if line.startswith('NFS '):
-                cur_vol.setdefault('info', []).append(
-                    line[4].lower() + line[5:])
-            elif line.startswith('PERMISSION'):
+            if line.startswith("NFS "):
+                cur_vol.setdefault("info", []).append(
+                    line[4].lower() + line[5:]
+                )
+            elif line.startswith("PERMISSION"):
                 state = 2  # listing
             # We silently discard any other lines
         elif state == 2:  # listing
@@ -412,10 +432,16 @@ def add_nfs_ls_data(script):
                 if size.isdigit():
                     size = int(size)
                     result["total"]["bytes"] += size
-                cur_vol["files"].append({"permission": permission,
-                                         "uid": uid, "gid": gid,
-                                         "size": size, "time": time,
-                                         "filename": fname})
+                cur_vol["files"].append(
+                    {
+                        "permission": permission,
+                        "uid": uid,
+                        "gid": gid,
+                        "size": size,
+                        "time": time,
+                        "filename": fname,
+                    }
+                )
                 result["total"]["files"] += 1
             else:
                 state = 0  # outside a volume
@@ -445,22 +471,30 @@ def add_afp_ls_data(script):
     cur_vol = None
     for line in script["output"].splitlines():
         if state == 0:
-            if line.startswith('    PERMISSION'):
+            if line.startswith("    PERMISSION"):
                 pass
-            elif line.startswith('    '):
+            elif line.startswith("    "):
                 if cur_vol is None:
-                    utils.LOGGER.warning("Skip file entry outside a "
-                                         "volume [%r]", line[4:])
+                    utils.LOGGER.warning(
+                        "Skip file entry outside a " "volume [%r]", line[4:]
+                    )
                 else:
-                    (permission, uid, gid, size, date, time,
-                     fname) = line[4:].split(None, 6)
+                    (permission, uid, gid, size, date, time, fname) = line[
+                        4:
+                    ].split(None, 6)
                     if size.isdigit():
                         size = int(size)
                         result["total"]["bytes"] += size
-                    cur_vol["files"].append({"permission": permission,
-                                             "uid": uid, "gid": gid,
-                                             "size": size, "filename": fname,
-                                             'time': "%s %s" % (date, time)})
+                    cur_vol["files"].append(
+                        {
+                            "permission": permission,
+                            "uid": uid,
+                            "gid": gid,
+                            "size": size,
+                            "filename": fname,
+                            "time": "%s %s" % (date, time),
+                        }
+                    )
                     result["total"]["files"] += 1
             elif line.startswith("  ERROR: "):
                 # skip error messages, same as when running without
@@ -473,8 +507,9 @@ def add_afp_ls_data(script):
                 cur_vol = {"volume": line[2:], "files": []}
         elif state == 1:
             if line.startswith("  "):
-                result.setdefault("info", []).append(line[3].lower() +
-                                                     line[4:])
+                result.setdefault("info", []).append(
+                    line[3].lower() + line[4:]
+                )
             else:
                 utils.LOGGER.warning("Skip not understood line [%r]", line)
     return result if result["volumes"] else None
@@ -498,42 +533,57 @@ def add_ftp_anon_data(script):
     assert script["id"] == "ftp-anon"
     # expressions that match lines, based on large data collection
     subexprs = {
-        "user": ('(?:[a-zA-Z0-9\\._-]+(?:\\s+[NLOPQS])?|\\\\x[0-9A-F]{2}|'
-                 '\\*|\\(\\?\\))'),
-        "fname": '[A-Za-z0-9%s]+' % re.escape(" ?._@[](){}~#'&$%!+\\-/,|`="),
-        "perm": '[a-zA-Z\\?-]{10}',
-        "day": '[0-3]?[0-9]',
+        "user": (
+            "(?:[a-zA-Z0-9\\._-]+(?:\\s+[NLOPQS])?|\\\\x[0-9A-F]{2}|"
+            "\\*|\\(\\?\\))"
+        ),
+        "fname": "[A-Za-z0-9%s]+" % re.escape(" ?._@[](){}~#'&$%!+\\-/,|`="),
+        "perm": "[a-zA-Z\\?-]{10}",
+        "day": "[0-3]?[0-9]",
         "year": "[0-9]{2,4}",
         "month": "(?:[0-1]?[0-9]|[A-Z][a-z]{2}|[A-Z]{3})",
         "time": "[0-9]{1,2}\\:[0-9]{2}(?:\\:[0-9]{1,2})?",
         "windate": "[0-9]{2}-[0-9]{2}-[0-9]{2,4} +[0-9]{2}:[0-9]{2}(?:[AP]M)?",
-        "vxworksdate": ("[A-Z][a-z]{2}-[0-9]{2}-[0-9]{2,4}\\s+"
-                        "[0-9]{2}:[0-9]{2}:[0-9]{2}"),
+        "vxworksdate": (
+            "[A-Z][a-z]{2}-[0-9]{2}-[0-9]{2,4}\\s+"
+            "[0-9]{2}:[0-9]{2}:[0-9]{2}"
+        ),
     }
-    subexprs["date"] = "(?:%s)" % "|".join([
-        "%(month)s\\s+%(day)s\\s+(?:%(year)s|%(time)s)" % subexprs,
-        "%(day)s\\.\\s+%(month)s\\s+%(time)s" % subexprs,
-    ])
-    exprs = re.compile("^(?:" + "|".join([
-        # unix
-        "(?P<unix_permission>%(perm)s)\\s+(?:[0-9]+\\s+)?"
-        "(?P<unix_uid>%(user)s)\\s+(?P<unix_gid>%(user)s)\\s+"
-        "(?P<unix_size>[0-9]+)\\s+(?P<unix_time>%(date)s)\\s+"
-        "(?P<unix_filename>%(fname)s)(?:\\ \\-\\>\\ "
-        "(?P<unix_linktarget>%(fname)s))?" % subexprs,
-        # windows
-        "(?P<win_time>%(windate)s)\\s+(?P<win_size>\\<DIR\\>|[0-9]+)\\s+"
-        "(?P<win_filename>%(fname)s)" % subexprs,
-        # vxworks
-        "\\s+(?P<vxw_size>[0-9]+)\\s+(?P<vxw_time>%(vxworksdate)s)\\s+"
-        "(?P<vxw_filename>%(fname)s)\\s+(?:\\<DIR\\>)?" % subexprs,
-    ]) + ")(?: \\[NSE: writeable\\])?$", re.MULTILINE)
+    subexprs["date"] = "(?:%s)" % "|".join(
+        [
+            "%(month)s\\s+%(day)s\\s+(?:%(year)s|%(time)s)" % subexprs,
+            "%(day)s\\.\\s+%(month)s\\s+%(time)s" % subexprs,
+        ]
+    )
+    exprs = re.compile(
+        "^(?:"
+        + "|".join(
+            [
+                # unix
+                "(?P<unix_permission>%(perm)s)\\s+(?:[0-9]+\\s+)?"
+                "(?P<unix_uid>%(user)s)\\s+(?P<unix_gid>%(user)s)\\s+"
+                "(?P<unix_size>[0-9]+)\\s+(?P<unix_time>%(date)s)\\s+"
+                "(?P<unix_filename>%(fname)s)(?:\\ \\-\\>\\ "
+                "(?P<unix_linktarget>%(fname)s))?" % subexprs,
+                # windows
+                "(?P<win_time>%(windate)s)\\s+(?P<win_size>\\<DIR\\>|[0-9]+)\\s+"
+                "(?P<win_filename>%(fname)s)" % subexprs,
+                # vxworks
+                "\\s+(?P<vxw_size>[0-9]+)\\s+(?P<vxw_time>%(vxworksdate)s)\\s+"
+                "(?P<vxw_filename>%(fname)s)\\s+(?:\\<DIR\\>)?" % subexprs,
+            ]
+        )
+        + ")(?: \\[NSE: writeable\\])?$",
+        re.MULTILINE,
+    )
     result = {"total": {"files": 0, "bytes": 0}, "volumes": []}
     cur_vol = {"volume": "/", "files": []}
     for fileentry in exprs.finditer(script["output"]):
-        fileentry = dict([key.split('_', 1)[1], value]
-                         for key, value in viewitems(fileentry.groupdict())
-                         if value is not None)
+        fileentry = dict(
+            [key.split("_", 1)[1], value]
+            for key, value in viewitems(fileentry.groupdict())
+            if value is not None
+        )
         size = fileentry.get("size")
         if size is not None and size.isdigit():
             size = int(size)
@@ -565,11 +615,12 @@ def add_http_headers_data(script):
 
 
 ADD_TABLE_ELEMS = {
-    'modbus-discover':
-    re.compile('^ *DEVICE IDENTIFICATION: *(?P<deviceid>.*?) *$', re.M),
-    'ls': add_ls_data,
-    'mongodb-databases': add_mongodb_databases_data,
-    'http-headers': add_http_headers_data,
+    "modbus-discover": re.compile(
+        "^ *DEVICE IDENTIFICATION: *(?P<deviceid>.*?) *$", re.M
+    ),
+    "ls": add_ls_data,
+    "mongodb-databases": add_mongodb_databases_data,
+    "http-headers": add_http_headers_data,
 }
 
 
@@ -603,14 +654,14 @@ def change_ls(table):
     fields to integers.
 
     """
-    if 'total' in table:
-        for field in ['files', 'bytes']:
-            if field in table['total'] and table['total'][field].isdigit():
-                table['total'][field] = int(table['total'][field])
-    for volume in table.get('volumes', []):
-        for fileentry in volume.get('files', []):
-            if 'size' in fileentry and fileentry['size'].isdigit():
-                fileentry['size'] = int(fileentry['size'])
+    if "total" in table:
+        for field in ["files", "bytes"]:
+            if field in table["total"] and table["total"][field].isdigit():
+                table["total"][field] = int(table["total"][field])
+    for volume in table.get("volumes", []):
+        for fileentry in volume.get("files", []):
+            if "size" in fileentry and fileentry["size"].isdigit():
+                fileentry["size"] = int(fileentry["size"])
     return table
 
 
@@ -620,180 +671,217 @@ def change_vulns(table):
 
 
 CHANGE_TABLE_ELEMS = {
-    'smb-enum-shares': change_smb_enum_shares,
+    "smb-enum-shares": change_smb_enum_shares,
     "s7-info": change_s7_info_keys,
-    'ls': change_ls,
-    'vulns': change_vulns,
+    "ls": change_ls,
+    "vulns": change_vulns,
 }
 
 IGNORE_SCRIPTS = {
-    'mcafee-epo-agent': set(['ePO Agent not found']),
-    'ftp-bounce': set(['no banner']),
-    'telnet-encryption': set(['\n  ERROR: Failed to send packet: TIMEOUT']),
-    'http-mobileversion-checker': set(['No mobile version detected.']),
-    'http-referer-checker': set(["Couldn't find any cross-domain scripts."]),
-    'http-default-accounts': set([
-        '[ERROR] HTTP request table is empty. This should not happen '
-        'since we at least made one request.',
-    ]),
-    'http-headers': set(['\n  (Request type: GET)\n']),
-    'http-cisco-anyconnect': set([
-        '\n  ERROR: Not a Cisco ASA or unsupported version',
-    ]),
-    'ndmp-fs-info': set([
-        '\n  ERROR: Failed to get filesystem information from server',
-    ]),
-    'ndmp-version': set([
-        '\n  ERROR: Failed to get host information from server',
-    ]),
-    'ajp-auth': set(['\n  ERROR: Failed to connect to AJP server']),
-    'ajp-headers': set(['\n  ERROR: Failed to retrieve server headers']),
-    'ajp-methods': set([
-        'Failed to get a valid response for the OPTION request',
-    ]),
-    'ajp-request': set([
-        '\n  ERROR: Failed to retrieve response for request',
-        '\n  ERROR: Failed to connect to AJP server',
-    ]),
-    'giop-info': set(['  \n  ERROR: Failed to read Packet.GIOP']),
-    'rsync-list-modules': set([
-        '\n  ERROR: Failed to connect to rsync server',
-        '\n  ERROR: Failed to retrieve a list of modules',
-    ]),
-    'sip-methods': set(['ERROR: Failed to connect to the SIP server.']),
-    'sip-call-spoof': set(['ERROR: Failed to connect to the SIP server.']),
-    'rpcap-info': set(['\n  ERROR: EOF']),
-    'rmi-dumpregistry': set(['Registry listing failed (Handshake failed)']),
-    'voldemort-info': set(['\n  ERROR: Unsupported protocol']),
-    'irc-botnet-channels': set(['\n  ERROR: EOF\n']),
-    'bitcoin-getaddr': set([
-        '\n  ERROR: Failed to extract address information',
-        '\n  ERROR: Failed to extract version information',
-    ]),
-    'bitcoin-info': set(['\n  ERROR: Failed to extract version information']),
-    'drda-info': set(['The response contained no EXCSATRD']),
-    'rdp-enum-encryption': set(['Received unhandled packet']),
-    'ldap-search': set(['ERROR: Failed to bind as the anonymous user']),
-    'mongodb-databases': set([
-        'No Bson data returned',
-    ]),
+    "mcafee-epo-agent": set(["ePO Agent not found"]),
+    "ftp-bounce": set(["no banner"]),
+    "telnet-encryption": set(["\n  ERROR: Failed to send packet: TIMEOUT"]),
+    "http-mobileversion-checker": set(["No mobile version detected."]),
+    "http-referer-checker": set(["Couldn't find any cross-domain scripts."]),
+    "http-default-accounts": set(
+        [
+            "[ERROR] HTTP request table is empty. This should not happen "
+            "since we at least made one request."
+        ]
+    ),
+    "http-headers": set(["\n  (Request type: GET)\n"]),
+    "http-cisco-anyconnect": set(
+        ["\n  ERROR: Not a Cisco ASA or unsupported version"]
+    ),
+    "ndmp-fs-info": set(
+        ["\n  ERROR: Failed to get filesystem information from server"]
+    ),
+    "ndmp-version": set(
+        ["\n  ERROR: Failed to get host information from server"]
+    ),
+    "ajp-auth": set(["\n  ERROR: Failed to connect to AJP server"]),
+    "ajp-headers": set(["\n  ERROR: Failed to retrieve server headers"]),
+    "ajp-methods": set(
+        ["Failed to get a valid response for the OPTION request"]
+    ),
+    "ajp-request": set(
+        [
+            "\n  ERROR: Failed to retrieve response for request",
+            "\n  ERROR: Failed to connect to AJP server",
+        ]
+    ),
+    "giop-info": set(["  \n  ERROR: Failed to read Packet.GIOP"]),
+    "rsync-list-modules": set(
+        [
+            "\n  ERROR: Failed to connect to rsync server",
+            "\n  ERROR: Failed to retrieve a list of modules",
+        ]
+    ),
+    "sip-methods": set(["ERROR: Failed to connect to the SIP server."]),
+    "sip-call-spoof": set(["ERROR: Failed to connect to the SIP server."]),
+    "rpcap-info": set(["\n  ERROR: EOF"]),
+    "rmi-dumpregistry": set(["Registry listing failed (Handshake failed)"]),
+    "voldemort-info": set(["\n  ERROR: Unsupported protocol"]),
+    "irc-botnet-channels": set(["\n  ERROR: EOF\n"]),
+    "bitcoin-getaddr": set(
+        [
+            "\n  ERROR: Failed to extract address information",
+            "\n  ERROR: Failed to extract version information",
+        ]
+    ),
+    "bitcoin-info": set(["\n  ERROR: Failed to extract version information"]),
+    "drda-info": set(["The response contained no EXCSATRD"]),
+    "rdp-enum-encryption": set(["Received unhandled packet"]),
+    "ldap-search": set(["ERROR: Failed to bind as the anonymous user"]),
+    "mongodb-databases": set(["No Bson data returned"]),
     # fixed in nmap commit 95f7b76d9f12d10832523e6f3db0e602a04b3a12
     # https://github.com/nmap/nmap/commit/95f7b76d9f12d10832523e6f3db0e602a04b3a12
-    'snmp-hh3c-logins': set(['\n  baseoid: 1.3.6.1.4.1.25506.2.12.1.1.1']),
-    'dns-nsec-enum': set(['\n  No NSEC records found\n']),
-    'dns-nsec3-enum': set(['\n  DNSSEC NSEC3 not supported\n']),
-    'http-csrf': set(["Couldn't find any CSRF vulnerabilities."]),
-    'http-devframework': set([
-        "Couldn't determine the underlying framework or CMS. Try increasing "
-        "'httpspider.maxpagecount' value to spider more pages.",
-    ]),
-    'http-dombased-xss': set(["Couldn't find any DOM based XSS."]),
-    'http-drupal-enum': set([
-        'Nothing found amongst the top 100 resources,use '
-        '--script-args number=<number|all> for deeper analysis)',
-    ]),
-    'http-errors': set(["Couldn't find any error pages."]),
-    'http-feed': set(["Couldn't find any feeds."]),
-    'http-litespeed-sourcecode-download': set([
-        'Request with null byte did not work. This web server might not be '
-        'vulnerable',
-        'Page: /index.php was not found. Try with an existing file.',
-    ]),
-    'http-sitemap-generator': set([
-        '\n  Directory structure:\n    /\n      Other: 1\n  Longest directory '
-        'structure:\n    Depth: 0\n    Dir: /\n  Total files found (by '
-        'extension):\n    Other: 1\n',
-        '\n  Directory structure:\n  Longest directory structure:\n    '
-        'Depth: 0\n    Dir: /\n  Total files found (by extension):\n    \n',
-    ]),
-    'http-stored-xss': set(["Couldn't find any stored XSS vulnerabilities."]),
-    'http-wordpress-enum': set([
-        'Nothing found amongst the top 100 resources,use '
-        '--script-args search-limit=<number|all> for deeper analysis)',
-    ]),
-    'http-wordpress-users': set(["[Error] Wordpress installation was not found"
-                                 ". We couldn't find wp-login.php"]),
-    'ssl-date': set(['TLS randomness does not represent time']),
+    "snmp-hh3c-logins": set(["\n  baseoid: 1.3.6.1.4.1.25506.2.12.1.1.1"]),
+    "dns-nsec-enum": set(["\n  No NSEC records found\n"]),
+    "dns-nsec3-enum": set(["\n  DNSSEC NSEC3 not supported\n"]),
+    "http-csrf": set(["Couldn't find any CSRF vulnerabilities."]),
+    "http-devframework": set(
+        [
+            "Couldn't determine the underlying framework or CMS. Try increasing "
+            "'httpspider.maxpagecount' value to spider more pages."
+        ]
+    ),
+    "http-dombased-xss": set(["Couldn't find any DOM based XSS."]),
+    "http-drupal-enum": set(
+        [
+            "Nothing found amongst the top 100 resources,use "
+            "--script-args number=<number|all> for deeper analysis)"
+        ]
+    ),
+    "http-errors": set(["Couldn't find any error pages."]),
+    "http-feed": set(["Couldn't find any feeds."]),
+    "http-litespeed-sourcecode-download": set(
+        [
+            "Request with null byte did not work. This web server might not be "
+            "vulnerable",
+            "Page: /index.php was not found. Try with an existing file.",
+        ]
+    ),
+    "http-sitemap-generator": set(
+        [
+            "\n  Directory structure:\n    /\n      Other: 1\n  Longest directory "
+            "structure:\n    Depth: 0\n    Dir: /\n  Total files found (by "
+            "extension):\n    Other: 1\n",
+            "\n  Directory structure:\n  Longest directory structure:\n    "
+            "Depth: 0\n    Dir: /\n  Total files found (by extension):\n    \n",
+        ]
+    ),
+    "http-stored-xss": set(["Couldn't find any stored XSS vulnerabilities."]),
+    "http-wordpress-enum": set(
+        [
+            "Nothing found amongst the top 100 resources,use "
+            "--script-args search-limit=<number|all> for deeper analysis)"
+        ]
+    ),
+    "http-wordpress-users": set(
+        [
+            "[Error] Wordpress installation was not found"
+            ". We couldn't find wp-login.php"
+        ]
+    ),
+    "ssl-date": set(["TLS randomness does not represent time"]),
     # host scripts
-    'firewalk': set(['None found']),
-    'ipidseq': set(['Unknown']),
-    'fcrdns': set(['FAIL (No PTR record)']),
-    'msrpc-enum': set(['SMB: ERROR: Server disconnected the connection']),
-    'smb-mbenum': set(['\n  ERROR: Failed to connect to browser service: '
-                       'SMB: ERROR: Server disconnected the connection']),
+    "firewalk": set(["None found"]),
+    "ipidseq": set(["Unknown"]),
+    "fcrdns": set(["FAIL (No PTR record)"]),
+    "msrpc-enum": set(["SMB: ERROR: Server disconnected the connection"]),
+    "smb-mbenum": set(
+        [
+            "\n  ERROR: Failed to connect to browser service: "
+            "SMB: ERROR: Server disconnected the connection"
+        ]
+    ),
 }
 
-IGNORE_SCRIPTS_IDS = set(["http-screenshot", "mainframe-screenshot",
-                          "rtsp-screenshot", "vnc-screenshot",
-                          "x11-screenshot"])
+IGNORE_SCRIPTS_IDS = set(
+    [
+        "http-screenshot",
+        "mainframe-screenshot",
+        "rtsp-screenshot",
+        "vnc-screenshot",
+        "x11-screenshot",
+    ]
+)
 
-MSSQL_ERROR = re.compile('^ *(ERROR: )?('
-                         'No login credentials|'
-                         'TCP: Socket connection failed, Named Pipes: '
-                         'No named pipe for this instance'
-                         ')\\.?$',
-                         re.MULTILINE)
+MSSQL_ERROR = re.compile(
+    "^ *(ERROR: )?("
+    "No login credentials|"
+    "TCP: Socket connection failed, Named Pipes: "
+    "No named pipe for this instance"
+    ")\\.?$",
+    re.MULTILINE,
+)
 
 IGNORE_SCRIPTS_REGEXP = {
-    'smtp-commands': re.compile(
+    "smtp-commands": re.compile(
         "^" + re.escape("Couldn't establish connection on port ") + "[0-9]+$"
     ),
-    'ms-sql-config': MSSQL_ERROR,
-    'ms-sql-dump-hashes': MSSQL_ERROR,
-    'ms-sql-hasdbaccess': MSSQL_ERROR,
-    'ms-sql-query': MSSQL_ERROR,
-    'ms-sql-tables': MSSQL_ERROR,
-    'irc-botnet-channels': re.compile(
+    "ms-sql-config": MSSQL_ERROR,
+    "ms-sql-dump-hashes": MSSQL_ERROR,
+    "ms-sql-hasdbaccess": MSSQL_ERROR,
+    "ms-sql-query": MSSQL_ERROR,
+    "ms-sql-tables": MSSQL_ERROR,
+    "irc-botnet-channels": re.compile(
         "^" + re.escape("\n  ERROR: Closing Link: ")
     ),
-    'http-php-version': re.compile(
-        '^(Logo query returned unknown hash [0-9a-f]{32}\\\n'
-        'Credits query returned unknown hash [0-9a-f]{32}|'
-        '(Logo|Credits) query returned unknown hash '
-        '[0-9a-f]{32})$'
+    "http-php-version": re.compile(
+        "^(Logo query returned unknown hash [0-9a-f]{32}\\\n"
+        "Credits query returned unknown hash [0-9a-f]{32}|"
+        "(Logo|Credits) query returned unknown hash "
+        "[0-9a-f]{32})$"
     ),
-    'p2p-conficker': re.compile(
-        re.escape('Host is CLEAN or ports are blocked')
+    "p2p-conficker": re.compile(
+        re.escape("Host is CLEAN or ports are blocked")
     ),
-    'dns-nsec-enum': re.compile(
-        "^" + re.escape("Can't determine domain for host ") + ".*" +
-        re.escape("; use dns-nsec-enum.domains script arg.") + "$"
+    "dns-nsec-enum": re.compile(
+        "^"
+        + re.escape("Can't determine domain for host ")
+        + ".*"
+        + re.escape("; use dns-nsec-enum.domains script arg.")
+        + "$"
     ),
-    'dns-nsec3-enum': re.compile(
-        "^" + re.escape("Can't determine domain for host ") + ".*" +
-        re.escape("; use dns-nsec3-enum.domains script arg.") + "$"
+    "dns-nsec3-enum": re.compile(
+        "^"
+        + re.escape("Can't determine domain for host ")
+        + ".*"
+        + re.escape("; use dns-nsec3-enum.domains script arg.")
+        + "$"
     ),
-    'http-vhosts': re.compile(
-        "^\\\n[0-9]+" + re.escape(" names had status ") +
-        ("(?:[0-9]{3}|ERROR)")
+    "http-vhosts": re.compile(
+        "^\\\n[0-9]+"
+        + re.escape(" names had status ")
+        + ("(?:[0-9]{3}|ERROR)")
     ),
-    'http-fileupload-exploiter': re.compile(
+    "http-fileupload-exploiter": re.compile(
         "^(" + re.escape("\n  \n    Couldn't find a file-type field.") + ")*$"
     ),
 }
 
-IGNORE_SCRIPT_OUTPUTS = set([
-    'Unable to open connection',
-    'false',
-    'TIMEOUT',
-    'ERROR',
-    '\n',
-    '\r\n',
-])
+IGNORE_SCRIPT_OUTPUTS = set(
+    ["Unable to open connection", "false", "TIMEOUT", "ERROR", "\n", "\r\n"]
+)
 
-IGNORE_SCRIPT_OUTPUTS_REGEXP = set([
-    # MD5(<empty>)
-    re.compile('d41d8cd98f00b204e9800998ecf8427e', re.IGNORECASE),
-    re.compile(
-        '^ *ERROR\\:\\ ('
-        'Failed\\ to\\ (connect\\ to|receive\\ response\\ from)\\ server|'
-        'Script\\ execution\\ failed\\ \\(use\\ \\-d\\ to\\ debug\\)|'
-        'Receiving\\ packet\\:\\ (ERROR|EOF)|'
-        'Failed\\ to\\ send\\ packet\\:\\ ERROR|'
-        'ERROR)', re.MULTILINE
-    ),
-    re.compile('^ *(SMB|ERROR):.*TIMEOUT', re.MULTILINE)
-])
+IGNORE_SCRIPT_OUTPUTS_REGEXP = set(
+    [
+        # MD5(<empty>)
+        re.compile("d41d8cd98f00b204e9800998ecf8427e", re.IGNORECASE),
+        re.compile(
+            "^ *ERROR\\:\\ ("
+            "Failed\\ to\\ (connect\\ to|receive\\ response\\ from)\\ server|"
+            "Script\\ execution\\ failed\\ \\(use\\ \\-d\\ to\\ debug\\)|"
+            "Receiving\\ packet\\:\\ (ERROR|EOF)|"
+            "Failed\\ to\\ send\\ packet\\:\\ ERROR|"
+            "ERROR)",
+            re.MULTILINE,
+        ),
+        re.compile("^ *(SMB|ERROR):.*TIMEOUT", re.MULTILINE),
+    ]
+)
 
 MASSCAN_S7_INDEXES = {
     0x11: {
@@ -804,7 +892,7 @@ MASSCAN_S7_INDEXES = {
         0x82: "svn_cpu",  # "Identification of the SVN version CPU"
         # 0x83: "Identification of the version CP",
     },
-    0x1c: {
+    0x1C: {
         1: "system_name",  # "Name of the PLC"
         2: "module_name",  # "Name of the module"
         3: "plant",  # "Plant identification"
@@ -825,11 +913,11 @@ NMAP_S7_INDEXES = {
     "Basic Hardware": MASSCAN_S7_INDEXES[0x11][6],
     "Version": "version",
     # 0x1c
-    "System Name": MASSCAN_S7_INDEXES[0x1c][1],
-    "Module Type": MASSCAN_S7_INDEXES[0x1c][2],
-    "Serial Number": MASSCAN_S7_INDEXES[0x1c][5],
-    "Plant Identification": MASSCAN_S7_INDEXES[0x1c][3],
-    "Copyright": MASSCAN_S7_INDEXES[0x1c][4],
+    "System Name": MASSCAN_S7_INDEXES[0x1C][1],
+    "Module Type": MASSCAN_S7_INDEXES[0x1C][2],
+    "Serial Number": MASSCAN_S7_INDEXES[0x1C][5],
+    "Plant Identification": MASSCAN_S7_INDEXES[0x1C][3],
+    "Copyright": MASSCAN_S7_INDEXES[0x1C][4],
 }
 
 MASSCAN_SERVICES_NMAP_SCRIPTS = {
@@ -850,7 +938,7 @@ MASSCAN_NMAP_SCRIPT_NMAP_PROBES = {
         "banner": ["NULL"],
         "ssh-banner": ["NULL"],
         "http-headers": ["GetRequest"],
-    },
+    }
 }
 
 MASSCAN_SERVICES_NMAP_SERVICES = {
@@ -870,8 +958,11 @@ MASSCAN_ENCODING = re.compile(re.escape(b"\\x") + b"([0-9a-f]{2})")
 
 def _masscan_decode_print(match):
     char = utils.decode_hex(match.groups()[0])
-    return (char if (32 <= ord(char) <= 126 or char in b"\t\r\n")
-            else match.group())
+    return (
+        char
+        if (32 <= ord(char) <= 126 or char in b"\t\r\n")
+        else match.group()
+    )
 
 
 def _masscan_decode_raw(match):
@@ -884,22 +975,22 @@ def masscan_parse_s7info(data):
     output_text = [""]
     state = 0
     service_info = {
-        'service_name': 'iso-tsap',
-        'service_devicetype': 'specialized',
+        "service_name": "iso-tsap",
+        "service_devicetype": "specialized",
     }
     while data:
         if data[:1] != b"\x03":
-            utils.LOGGER.warning(
-                "Masscan s7-info: invalid data [%r]",
-                data
-            )
+            utils.LOGGER.warning("Masscan s7-info: invalid data [%r]", data)
             return
         length = struct.unpack(">H", data[2:4])[0]
         curdata, data = data[4:length], data[length:]
         if len(curdata) < length - 4:
             utils.LOGGER.warning(
                 "Masscan s7-info: record too short [%r] length %d, should be "
-                "%d", curdata, len(curdata), length - 4
+                "%d",
+                curdata,
+                len(curdata),
+                length - 4,
             )
         datatype = curdata[1:2]
         if state == 0:  # Connect Confirm
@@ -914,12 +1005,12 @@ def masscan_parse_s7info(data):
             return
         if datatype != b"\xf0":
             utils.LOGGER.warning(
-                "Masscan s7-info: invalid data type [%r]", curdata,
+                "Masscan s7-info: invalid data type [%r]", curdata
             )
             return
         if curdata[3:4] != b"2":
             utils.LOGGER.warning(
-                "Masscan s7-info: invalid magic [%r]", curdata,
+                "Masscan s7-info: invalid magic [%r]", curdata
             )
             return
         if state == 1:  # ROSCTR setup response
@@ -928,39 +1019,52 @@ def masscan_parse_s7info(data):
         # state in [2, 3]: first or second SZL request response
         state += 1
         try:
-            hdrlen = struct.unpack('>H', curdata[9:11])[0]
-            szl_id, reclen = struct.unpack('>H2xH',
-                                           curdata[17 + hdrlen:23 + hdrlen])
+            hdrlen = struct.unpack(">H", curdata[9:11])[0]
+            szl_id, reclen = struct.unpack(
+                ">H2xH", curdata[17 + hdrlen : 23 + hdrlen]
+            )
         except struct.error:
             utils.LOGGER.warning("Not enough data to parse [%r]", curdata)
             continue
         if reclen not in [28, 34]:
             utils.LOGGER.info(
-                'STRANGE LEN szl_id=%04x, reclen=%d [%r] [%r]', szl_id, reclen,
-                curdata, fulldata
+                "STRANGE LEN szl_id=%04x, reclen=%d [%r] [%r]",
+                szl_id,
+                reclen,
+                curdata,
+                fulldata,
             )
-        if szl_id not in [0x11, 0x1c]:
-            utils.LOGGER.warning("Do not know how to parse szl_id %04x [%r]",
-                                 szl_id, curdata)
+        if szl_id not in [0x11, 0x1C]:
+            utils.LOGGER.warning(
+                "Do not know how to parse szl_id %04x [%r]", szl_id, curdata
+            )
             continue
         values = []
-        curdata = curdata[25 + hdrlen:]
+        curdata = curdata[25 + hdrlen :]
         curdata_len = min(reclen, len(curdata))
         while curdata_len > 2:
             if curdata_len < reclen:
                 utils.LOGGER.warning(
-                    'Masscan s7-info: record too short at szl_id=%04x [%r], '
-                    'length %d, should be %d',
-                    szl_id, curdata[:reclen], curdata_len, reclen,
+                    "Masscan s7-info: record too short at szl_id=%04x [%r], "
+                    "length %d, should be %d",
+                    szl_id,
+                    curdata[:reclen],
+                    curdata_len,
+                    reclen,
                 )
             curvalues = struct.unpack(
-                '>H%ds%dB' % (min(curdata_len - 2, reclen - 8),
-                              max(curdata_len - reclen + 6, 0)),
+                ">H%ds%dB"
+                % (
+                    min(curdata_len - 2, reclen - 8),
+                    max(curdata_len - reclen + 6, 0),
+                ),
                 curdata[:reclen],
             )
             utils.LOGGER.debug(
-                'Masscan s7-info: szl_id=%04x index=%04x values=%r',
-                szl_id, curvalues[0], curvalues[1:],
+                "Masscan s7-info: szl_id=%04x index=%04x values=%r",
+                szl_id,
+                curvalues[0],
+                curvalues[1:],
             )
             values.append(curvalues[:2])
             curdata = curdata[reclen:]
@@ -973,7 +1077,9 @@ def masscan_parse_s7info(data):
                 utils.LOGGER.info(
                     "Masscan s7-info: cannot find key "
                     "(szl_id=%04x, index=%04x, value=%r)",
-                    szl_id, index, value
+                    szl_id,
+                    index,
+                    value,
                 )
                 key = "UNK-%04x-%04x" % (szl_id, index)
             value = value.rstrip(b" \x00")
@@ -984,23 +1090,28 @@ def masscan_parse_s7info(data):
                     "Masscan s7-info: cannot decode value "
                     "(szl_id=%04x, index=%04x, key=%s, value=%r). "
                     "Using latin-1.",
-                    szl_id, index, key, value
+                    szl_id,
+                    index,
+                    key,
+                    value,
                 )
-                value = value.decode('latin-1')
+                value = value.decode("latin-1")
             else:
                 output_data[key] = value
                 output_text.append("  %s: %s" % (key, value))
-    if output_data.get('system_name') == 'Technodrome':
-        service_info = {'service_name': 'honeypot',
-                        'service_product': 'MushMush Conpot'}
+    if output_data.get("system_name") == "Technodrome":
+        service_info = {
+            "service_name": "honeypot",
+            "service_product": "MushMush Conpot",
+        }
     else:
         product = {
-            'Original Siemens Equipment': 'Siemens S7 PLC',
-            'Original INSEVIS equipment': 'Insevis S7 PLC',
-        }.get(output_data.get('copyright'))
+            "Original Siemens Equipment": "Siemens S7 PLC",
+            "Original INSEVIS equipment": "Insevis S7 PLC",
+        }.get(output_data.get("copyright"))
         if product:
-            service_info['service_product'] = product
-    output_text.append('\n')
+            service_info["service_product"] = product
+    output_text.append("\n")
     return service_info, output_text, output_data
 
 
@@ -1016,53 +1127,52 @@ X509 "service" tag.
         data = utils.encode_b64(cert)
     info = utils.get_cert_info(cert)
     newout = []
-    for key, name in [('subject_text', 'Subject'),
-                      ('issuer_text', 'Issuer')]:
+    for key, name in [("subject_text", "Subject"), ("issuer_text", "Issuer")]:
         try:
-            newout.append('%s: %s' % (name, info[key]))
+            newout.append("%s: %s" % (name, info[key]))
         except KeyError:
             pass
-    for key, name in [('md5', 'MD5:'), ('sha1', 'SHA-1:')]:
+    for key, name in [("md5", "MD5:"), ("sha1", "SHA-1:")]:
         try:
-            newout.append('%-7s%s\n' % (name, info[key]))
+            newout.append("%-7s%s\n" % (name, info[key]))
         except KeyError:
             pass
     try:
-        pubkeyalgo = info.pop('pubkeyalgo')
+        pubkeyalgo = info.pop("pubkeyalgo")
     except KeyError:
         pass
     else:
         pubkeytype = {
-            'rsaEncryption': 'rsa',
-            'id-ecPublicKey': 'ec',
-            'id-dsa': 'dsa',
-            'dhpublicnumber': 'dh',
+            "rsaEncryption": "rsa",
+            "id-ecPublicKey": "ec",
+            "id-dsa": "dsa",
+            "dhpublicnumber": "dh",
         }.get(pubkeyalgo, pubkeyalgo)
-        newout.append('Public Key type: %s\n' % pubkeytype)
-        info['pubkey'] = {'type': pubkeytype}
-    for key in ['bits', 'modulus', 'exponent']:
+        newout.append("Public Key type: %s\n" % pubkeytype)
+        info["pubkey"] = {"type": pubkeytype}
+    for key in ["bits", "modulus", "exponent"]:
         try:
-            info.setdefault('pubkey', {})[key] = info.pop(key)
+            info.setdefault("pubkey", {})[key] = info.pop(key)
         except KeyError:
             pass
         else:
             try:
-                info['pubkey'][key] = int(info['pubkey'][key])
+                info["pubkey"][key] = int(info["pubkey"][key])
             except ValueError:
                 try:
-                    info['pubkey'][key] = str(int(re.sub('[ :\n]+', '',
-                                                         info['pubkey'][key]),
-                                                  16))
+                    info["pubkey"][key] = str(
+                        int(re.sub("[ :\n]+", "", info["pubkey"][key]), 16)
+                    )
                 except ValueError:
                     pass
     b64cert = data.decode()
     pem = []
-    pem.append('-----BEGIN CERTIFICATE-----')
-    pem.extend(b64cert[i:i + 64] for i in range(0, len(b64cert), 64))
-    pem.append('-----END CERTIFICATE-----')
-    pem.append('')
+    pem.append("-----BEGIN CERTIFICATE-----")
+    pem.extend(b64cert[i : i + 64] for i in range(0, len(b64cert), 64))
+    pem.append("-----END CERTIFICATE-----")
+    pem.append("")
     newout.extend(pem)
-    info['pem'] = '\n'.join(pem)
+    info["pem"] = "\n".join(pem)
     return newout, info
 
 
@@ -1072,8 +1182,8 @@ def ignore_script(script):
     their output is known to be irrelevant.
 
     """
-    sid = script.get('id')
-    output = script.get('output')
+    sid = script.get("id")
+    output = script.get("output")
     if sid in IGNORE_SCRIPTS_IDS:
         return True
     if output in IGNORE_SCRIPTS.get(sid, []):
@@ -1081,13 +1191,14 @@ def ignore_script(script):
     if output in IGNORE_SCRIPT_OUTPUTS:
         return True
     if (
-            IGNORE_SCRIPTS_REGEXP.get(sid) and
-            output is not None and
-            IGNORE_SCRIPTS_REGEXP[sid].search(output)
+        IGNORE_SCRIPTS_REGEXP.get(sid)
+        and output is not None
+        and IGNORE_SCRIPTS_REGEXP[sid].search(output)
     ):
         return True
-    if output is not None and any(expr.search(output)
-                                  for expr in IGNORE_SCRIPT_OUTPUTS_REGEXP):
+    if output is not None and any(
+        expr.search(output) for expr in IGNORE_SCRIPT_OUTPUTS_REGEXP
+    ):
         return True
     return False
 
@@ -1129,7 +1240,7 @@ class NoExtResolver(EntityResolver):
     """
 
     def resolveEntity(self, *_):
-        return 'file://%s' % os.devnull
+        return "file://%s" % os.devnull
 
 
 class NmapHandler(ContentHandler):
@@ -1139,8 +1250,15 @@ class NmapHandler(ContentHandler):
 
     """
 
-    def __init__(self, fname, filehash, needports=False, needopenports=False,
-                 masscan_probes=None, **_):
+    def __init__(
+        self,
+        fname,
+        filehash,
+        needports=False,
+        needopenports=False,
+        masscan_probes=None,
+        **_
+    ):
         ContentHandler.__init__(self)
         self._needports = needports
         self._needopenports = needopenports
@@ -1178,9 +1296,9 @@ class NmapHandler(ContentHandler):
 
     def _pre_addhost(self):
         """Executed before _addhost for host object post-treatment"""
-        if 'cpes' in self._curhost:
-            cpes = self._curhost['cpes']
-            self._curhost['cpes'] = list(viewvalues(cpes))
+        if "cpes" in self._curhost:
+            cpes = self._curhost["cpes"]
+            self._curhost["cpes"] = list(viewvalues(cpes))
 
     def _addhost(self):
         """Subclasses may store self._curhost here."""
@@ -1198,186 +1316,214 @@ class NmapHandler(ContentHandler):
         pass
 
     def startElement(self, name, attrs):
-        if name == 'nmaprun':
+        if name == "nmaprun":
             if self._curscan is not None:
-                utils.LOGGER.warning("self._curscan should be None at "
-                                     "this point (got %r)", self._curscan)
+                utils.LOGGER.warning(
+                    "self._curscan should be None at " "this point (got %r)",
+                    self._curscan,
+                )
             self._curscan = dict(attrs)
             self.scanner = self._curscan.get("scanner", self.scanner)
-            self._curscan['_id'] = self._filehash
-        elif name == 'scaninfo' and self._curscan is not None:
+            self._curscan["_id"] = self._filehash
+        elif name == "scaninfo" and self._curscan is not None:
             self._addscaninfo(dict(attrs))
-        elif name == 'host':
+        elif name == "host":
             if self._curhost is not None:
-                utils.LOGGER.warning("self._curhost should be None at "
-                                     "this point (got %r)", self._curhost)
+                utils.LOGGER.warning(
+                    "self._curhost should be None at " "this point (got %r)",
+                    self._curhost,
+                )
             self._curhost = {"schema_version": SCHEMA_VERSION}
             if self._curscan:
-                self._curhost['scanid'] = self._curscan['_id']
+                self._curhost["scanid"] = self._curscan["_id"]
             for attr in attrs.keys():
                 self._curhost[attr] = attrs[attr]
-            for field in ['starttime', 'endtime']:
+            for field in ["starttime", "endtime"]:
                 if field in self._curhost:
                     self._curhost[field] = datetime.datetime.utcfromtimestamp(
                         int(self._curhost[field])
                     )
-            if 'starttime' not in self._curhost and 'endtime' in self._curhost:
+            if "starttime" not in self._curhost and "endtime" in self._curhost:
                 # Masscan
-                self._curhost['starttime'] = self._curhost['endtime']
-        elif name == 'address' and self._curhost is not None:
-            if attrs['addrtype'] in ['ipv4', 'ipv6'] \
-               and 'addr' not in self._curhost:
-                self._curhost['addr'] = attrs['addr']
+                self._curhost["starttime"] = self._curhost["endtime"]
+        elif name == "address" and self._curhost is not None:
+            if (
+                attrs["addrtype"] in ["ipv4", "ipv6"]
+                and "addr" not in self._curhost
+            ):
+                self._curhost["addr"] = attrs["addr"]
             else:
-                self._curhost.setdefault(
-                    'addresses', {}).setdefault(
-                        attrs['addrtype'], []).append(attrs['addr'])
-        elif name == 'hostnames':
+                self._curhost.setdefault("addresses", {}).setdefault(
+                    attrs["addrtype"], []
+                ).append(attrs["addr"])
+        elif name == "hostnames":
             if self._curhostnames is not None:
-                utils.LOGGER.warning("self._curhostnames should be None at "
-                                     "this point (got %r)", self._curhostnames)
+                utils.LOGGER.warning(
+                    "self._curhostnames should be None at "
+                    "this point (got %r)",
+                    self._curhostnames,
+                )
             self._curhostnames = []
-        elif name == 'hostname':
+        elif name == "hostname":
             if self._curhostnames is None:
-                utils.LOGGER.warning("self._curhostnames should NOT be "
-                                     "None at this point")
+                utils.LOGGER.warning(
+                    "self._curhostnames should NOT be " "None at this point"
+                )
                 self._curhostnames = []
             hostname = dict(attrs)
-            if 'name' in attrs:
-                hostname['domains'] = list(utils.get_domains(attrs['name']))
+            if "name" in attrs:
+                hostname["domains"] = list(utils.get_domains(attrs["name"]))
             self._curhostnames.append(hostname)
-        elif name == 'status' and self._curhost is not None:
-            self._curhost['state'] = attrs['state']
-            if 'reason' in attrs:
-                self._curhost['state_reason'] = attrs['reason']
-            if 'reason_ttl' in attrs:
-                self._curhost['state_reason_ttl'] = int(attrs['reason_ttl'])
-        elif name == 'extraports':
+        elif name == "status" and self._curhost is not None:
+            self._curhost["state"] = attrs["state"]
+            if "reason" in attrs:
+                self._curhost["state_reason"] = attrs["reason"]
+            if "reason_ttl" in attrs:
+                self._curhost["state_reason_ttl"] = int(attrs["reason_ttl"])
+        elif name == "extraports":
             if self._curextraports is not None:
-                utils.LOGGER.warning("self._curextraports should be None at "
-                                     "this point (got %r)",
-                                     self._curextraports)
+                utils.LOGGER.warning(
+                    "self._curextraports should be None at "
+                    "this point (got %r)",
+                    self._curextraports,
+                )
             self._curextraports = {
-                attrs['state']: {"total": int(attrs['count']), "reasons": {}},
+                attrs["state"]: {"total": int(attrs["count"]), "reasons": {}}
             }
-        elif name == 'extrareasons' and self._curextraports is not None:
+        elif name == "extrareasons" and self._curextraports is not None:
             self._curextraports[next(iter(self._curextraports))]["reasons"][
-                attrs['reason']] = int(attrs['count'])
-        elif name == 'port':
+                attrs["reason"]
+            ] = int(attrs["count"])
+        elif name == "port":
             if self._curport is not None:
-                utils.LOGGER.warning("self._curport should be None at this "
-                                     "point (got %r)", self._curport)
-            self._curport = {'protocol': attrs['protocol'],
-                             'port': int(attrs['portid'])}
-        elif name == 'state' and self._curport is not None:
+                utils.LOGGER.warning(
+                    "self._curport should be None at this " "point (got %r)",
+                    self._curport,
+                )
+            self._curport = {
+                "protocol": attrs["protocol"],
+                "port": int(attrs["portid"]),
+            }
+        elif name == "state" and self._curport is not None:
             for attr in attrs.keys():
-                self._curport['state_%s' % attr] = attrs[attr]
-            for field in ['state_reason_ttl']:
+                self._curport["state_%s" % attr] = attrs[attr]
+            for field in ["state_reason_ttl"]:
                 if field in self._curport:
                     self._curport[field] = int(self._curport[field])
-        elif name == 'service' and self._curport is not None:
+        elif name == "service" and self._curport is not None:
             if attrs.get("method") == "table":
                 # discard information from nmap-services
                 return
             if self.scanner == "masscan":
                 banner = attrs["banner"]
-                if attrs['name'] == 'vnc' and "=" in attrs["banner"]:
+                if attrs["name"] == "vnc" and "=" in attrs["banner"]:
                     # See also
                     # https://github.com/robertdavidgraham/masscan/pull/250
-                    banner = banner.split(' ')
-                    banner, vncinfo = ('%s\\x0a' % ' '.join(banner[:2]),
-                                       banner[2:])
+                    banner = banner.split(" ")
+                    banner, vncinfo = (
+                        "%s\\x0a" % " ".join(banner[:2]),
+                        banner[2:],
+                    )
                     if vncinfo:
                         output = []
                         while vncinfo:
                             info = vncinfo.pop(0)
-                            if info.startswith('ERROR='):
-                                info = 'ERROR: ' + ' '.join(vncinfo)
+                            if info.startswith("ERROR="):
+                                info = "ERROR: " + " ".join(vncinfo)
                                 vncinfo = []
-                            elif '=[' in info:
-                                while vncinfo and not info.endswith(']'):
-                                    info += ' ' + vncinfo.pop(0)
-                                info = info.replace('=[', ': ', 1)
-                                if info.endswith(']'):
+                            elif "=[" in info:
+                                while vncinfo and not info.endswith("]"):
+                                    info += " " + vncinfo.pop(0)
+                                info = info.replace("=[", ": ", 1)
+                                if info.endswith("]"):
                                     info = info[:-1]
                             else:
-                                info = info.replace('=', ': ', 1)
+                                info = info.replace("=", ": ", 1)
                             output.append(info)
-                        self._curport.setdefault('scripts', []).append({
-                            'id': 'vnc-info', 'output': '\n'.join(output),
-                        })
-                elif attrs['name'] == 'smb':
+                        self._curport.setdefault("scripts", []).append(
+                            {"id": "vnc-info", "output": "\n".join(output)}
+                        )
+                elif attrs["name"] == "smb":
                     # smb has to be handled differently: we build host
                     # scripts to match Nmap behavior
-                    self._curport['service_name'] = (
-                        'netbios-ssn'
-                        if self._curport.get('port') == 139 else
-                        'microsoft-ds'
-                        if self._curport.get('port') == 445 else
-                        'smb'
+                    self._curport["service_name"] = (
+                        "netbios-ssn"
+                        if self._curport.get("port") == 139
+                        else "microsoft-ds"
+                        if self._curport.get("port") == 445
+                        else "smb"
                     )
-                    raw_output = MASSCAN_ENCODING.sub(_masscan_decode_raw,
-                                                      banner.encode())
+                    raw_output = MASSCAN_ENCODING.sub(
+                        _masscan_decode_raw, banner.encode()
+                    )
                     masscan_data = {
                         "raw": self._to_binary(raw_output),
                         "encoded": banner,
                     }
-                    if banner.startswith('ERROR'):
-                        self._curhost.setdefault('ports', []).append({
-                            'port': -1,
-                            'scripts': [{
-                                'id': 'smb-os-discovery',
-                                'output': banner,
-                                'masscan': masscan_data,
-                            }],
-                        })
+                    if banner.startswith("ERROR"):
+                        self._curhost.setdefault("ports", []).append(
+                            {
+                                "port": -1,
+                                "scripts": [
+                                    {
+                                        "id": "smb-os-discovery",
+                                        "output": banner,
+                                        "masscan": masscan_data,
+                                    }
+                                ],
+                            }
+                        )
                         return
                     data = {}
                     while True:
                         banner = banner.strip()
                         if not banner:
                             break
-                        if banner.startswith('SMBv'):
+                        if banner.startswith("SMBv"):
                             try:
-                                idx = banner.index(' ')
+                                idx = banner.index(" ")
                             except ValueError:
-                                data['version'] = banner
+                                data["version"] = banner
                                 banner = ""
                             else:
-                                data['version'] = banner[:idx]
+                                data["version"] = banner[:idx]
                                 banner = banner[idx:]
                             continue
                         # os values may contain spaces
-                        if banner.startswith('os=') or \
-                           banner.startswith('ver='):
-                            key, banner = banner.split('=', 1)
+                        if banner.startswith("os=") or banner.startswith(
+                            "ver="
+                        ):
+                            key, banner = banner.split("=", 1)
                             value = []
                             while banner and not re.compile(
-                                    '^[a-z-]+=', re.I
+                                "^[a-z-]+=", re.I
                             ).search(banner):
                                 try:
-                                    idx = banner.index(' ')
+                                    idx = banner.index(" ")
                                 except ValueError:
                                     value.append(banner)
                                     banner = ""
                                     break
                                 else:
                                     value.append(banner[:idx])
-                                    banner = banner[idx + 1:]
-                            data[key] = ' '.join(value)
+                                    banner = banner[idx + 1 :]
+                            data[key] = " ".join(value)
                             continue
-                        if banner.startswith('time=') or \
-                           banner.startswith('boottime='):
-                            key, banner = banner.split('=', 1)
-                            idx = re.compile(
-                                '\\d+-\\d+\\d+ \\d+:\\d+:\\d+'
-                            ).search(banner).end()
+                        if banner.startswith("time=") or banner.startswith(
+                            "boottime="
+                        ):
+                            key, banner = banner.split("=", 1)
+                            idx = (
+                                re.compile("\\d+-\\d+\\d+ \\d+:\\d+:\\d+")
+                                .search(banner)
+                                .end()
+                            )
                             tstamp = banner[:idx]
                             banner = banner[idx:]
-                            if banner.startswith(' TZ='):
+                            if banner.startswith(" TZ="):
                                 banner = banner[4:]
                                 try:
-                                    idx = banner.index(' ')
+                                    idx = banner.index(" ")
                                 except ValueError:
                                     tzone = banner
                                     banner = ""
@@ -1385,18 +1531,17 @@ class NmapHandler(ContentHandler):
                                     tzone = banner[:idx]
                                     banner = banner[idx:]
                                 tzone = int(tzone)
-                                tzone = '%+03d%02d' % (tzone // 60, tzone % 60)
+                                tzone = "%+03d%02d" % (tzone // 60, tzone % 60)
                             else:
                                 tzone = ""
-                            if tstamp.startswith('60056-05-28 '):
+                            if tstamp.startswith("60056-05-28 "):
                                 # maximum windows timestamp value
                                 continue
                             try:
                                 data[key] = datetime.datetime.strptime(
                                     tstamp + tzone,
-                                    '%Y-%m-%d %H:%M:%S' + (
-                                        '%z' if tzone else ''
-                                    ),
+                                    "%Y-%m-%d %H:%M:%S"
+                                    + ("%z" if tzone else ""),
                                 )
                                 # data[key] = utils.all2datetime(tstamp)
                             except ValueError:
@@ -1408,152 +1553,175 @@ class NmapHandler(ContentHandler):
                                 )
                             continue
                         try:
-                            idx = banner.index(' ')
+                            idx = banner.index(" ")
                         except ValueError:
-                            key, value = banner.split('=', 1)
-                            banner = ''
+                            key, value = banner.split("=", 1)
+                            banner = ""
                         else:
-                            key, value = banner[:idx].split('=', 1)
+                            key, value = banner[:idx].split("=", 1)
                             banner = banner[idx:]
                         data[key] = value
                     smb_os_disco = {}
-                    smb_os_disco_output = ['']
+                    smb_os_disco_output = [""]
                     for masscankey, nmapkey, humankey in [
-                            ('name', 'server', 'NetBIOS computer name'),
-                            ('domain', 'workgroup', None),
-                            ('name-dns', 'fqdn', 'FQDN'),
-                            ('domain-dns', 'domain_dns', 'Domain name'),
-                            ('forest', 'forest_dns', 'Forest name')
-                            # TODO
-                            # ('guid', 'guid', None),
-                            # ('ntlm-ver', 'guid', None),
-                            # ('os', 'guid', None),
-                            # ('ver', 'guid', None),
-                            # ('version', 'guid', None),
+                        ("name", "server", "NetBIOS computer name"),
+                        ("domain", "workgroup", None),
+                        ("name-dns", "fqdn", "FQDN"),
+                        ("domain-dns", "domain_dns", "Domain name"),
+                        ("forest", "forest_dns", "Forest name")
+                        # TODO
+                        # ('guid', 'guid', None),
+                        # ('ntlm-ver', 'guid', None),
+                        # ('os', 'guid', None),
+                        # ('ver', 'guid', None),
+                        # ('version', 'guid', None),
                     ]:
                         if masscankey in data:
                             smb_os_disco[nmapkey] = data[masscankey]
                             if humankey is not None:
-                                smb_os_disco_output.append("  %s: %s" % (
-                                    humankey,
-                                    data[masscankey],
-                                ))
+                                smb_os_disco_output.append(
+                                    "  %s: %s" % (humankey, data[masscankey])
+                                )
                     scripts = []
-                    if 'time' in data:
+                    if "time" in data:
                         # FIXME TIME ZONE
-                        smb_os_disco['date'] = data['time'].strftime(
-                            '%Y-%m-%dT%H:%M:%S'
+                        smb_os_disco["date"] = data["time"].strftime(
+                            "%Y-%m-%dT%H:%M:%S"
                         )
                         smb_os_disco_output.append(
-                            '  System time: %s' % smb_os_disco['date']
+                            "  System time: %s" % smb_os_disco["date"]
                         )
-                        smb2_time = {'date': str(data['time'])}
-                        smb2_time_out = ['', '  date: %s' % data['time']]
-                        if 'boottime' in data:
+                        smb2_time = {"date": str(data["time"])}
+                        smb2_time_out = ["", "  date: %s" % data["time"]]
+                        if "boottime" in data:
                             # Masscan has to be patched to report
                             # this.
-                            smb2_time['start_time'] = str(data['boottime'])
+                            smb2_time["start_time"] = str(data["boottime"])
                             smb2_time_out.append(
-                                '  start_time: %s' % data['boottime']
+                                "  start_time: %s" % data["boottime"]
                             )
-                        scripts.append({
-                            'id': 'smb2-time',
-                            'smb2-time': smb2_time,
-                            'output': '\n'.join(smb2_time_out)
-                        })
-                    smb_os_disco_output.append('')
-                    scripts.append({
-                        'id': 'smb-os-discovery',
-                        'smb-os-discovery': smb_os_disco,
-                        'output': '\n'.join(smb_os_disco_output),
-                        'masscan': masscan_data,
-                    })
-                    self._curhost.setdefault('ports', []).append({
-                        'port': -1,
-                        'scripts': scripts,
-                    })
+                        scripts.append(
+                            {
+                                "id": "smb2-time",
+                                "smb2-time": smb2_time,
+                                "output": "\n".join(smb2_time_out),
+                            }
+                        )
+                    smb_os_disco_output.append("")
+                    scripts.append(
+                        {
+                            "id": "smb-os-discovery",
+                            "smb-os-discovery": smb_os_disco,
+                            "output": "\n".join(smb_os_disco_output),
+                            "masscan": masscan_data,
+                        }
+                    )
+                    self._curhost.setdefault("ports", []).append(
+                        {"port": -1, "scripts": scripts}
+                    )
                     return
                 # create fake scripts from masscan "service" tags
-                raw_output = MASSCAN_ENCODING.sub(_masscan_decode_raw,
-                                                  banner.encode())
-                scriptid = MASSCAN_SERVICES_NMAP_SCRIPTS.get(attrs['name'],
-                                                             attrs['name'])
+                raw_output = MASSCAN_ENCODING.sub(
+                    _masscan_decode_raw, banner.encode()
+                )
+                scriptid = MASSCAN_SERVICES_NMAP_SCRIPTS.get(
+                    attrs["name"], attrs["name"]
+                )
                 script = {
                     "id": scriptid,
-                    "output": MASSCAN_ENCODING.sub(_masscan_decode_print,
-                                                   banner.encode()).decode(),
+                    "output": MASSCAN_ENCODING.sub(
+                        _masscan_decode_print, banner.encode()
+                    ).decode(),
                     "masscan": {
                         "raw": self._to_binary(raw_output),
                         "encoded": banner,
                     },
                 }
-                self._curport.setdefault('scripts', []).append(script)
+                self._curport.setdefault("scripts", []).append(script)
                 # get service name
                 try:
                     self._curport[
-                        'service_name'
-                    ] = MASSCAN_SERVICES_NMAP_SERVICES[attrs['name']]
+                        "service_name"
+                    ] = MASSCAN_SERVICES_NMAP_SERVICES[attrs["name"]]
                 except KeyError:
                     pass
-                if attrs['name'] in ["ssl", "X509"]:
-                    self._curport['service_tunnel'] = "ssl"
+                if attrs["name"] in ["ssl", "X509"]:
+                    self._curport["service_tunnel"] = "ssl"
                 self.masscan_post_script(script)
                 # attempt to use Nmap service fingerprints
                 probes = self.masscan_probes[:]
-                probes.extend(MASSCAN_NMAP_SCRIPT_NMAP_PROBES
-                              .get(self._curport['protocol'], {})
-                              .get(scriptid, []))
+                probes.extend(
+                    MASSCAN_NMAP_SCRIPT_NMAP_PROBES.get(
+                        self._curport["protocol"], {}
+                    ).get(scriptid, [])
+                )
                 match = {}
                 for probe in probes:
                     # udp/ike: let's use ike-scan FP
-                    if self._curport['protocol'] == 'udp' and \
-                       probe in ['ike', 'ike-ipsec-nat-t']:
+                    if self._curport["protocol"] == "udp" and probe in [
+                        "ike",
+                        "ike-ipsec-nat-t",
+                    ]:
                         masscan_data = script["masscan"]
-                        self._curport.update(ike.analyze_ike_payload(
-                            raw_output, probe=probe,
-                        ))
-                        if self._curport.get('service_name') == 'isakmp':
-                            self._curport['scripts'][0][
-                                'masscan'
+                        self._curport.update(
+                            ike.analyze_ike_payload(raw_output, probe=probe)
+                        )
+                        if self._curport.get("service_name") == "isakmp":
+                            self._curport["scripts"][0][
+                                "masscan"
                             ] = masscan_data
                         return
-                    if self._curport.get('service_name') in ['ftp', 'imap',
-                                                             'pop3', 'smtp',
-                                                             'ssh']:
-                        raw_output = raw_output.split(
-                            b'\n', 1
-                        )[0].rstrip(b'\r')
+                    if self._curport.get("service_name") in [
+                        "ftp",
+                        "imap",
+                        "pop3",
+                        "smtp",
+                        "ssh",
+                    ]:
+                        raw_output = raw_output.split(b"\n", 1)[0].rstrip(
+                            b"\r"
+                        )
                     match = utils.match_nmap_svc_fp(
                         output=raw_output,
-                        proto=self._curport['protocol'],
+                        proto=self._curport["protocol"],
                         probe=probe,
                     )
                 if match:
                     self._curport.update(match)
                 return
             for attr in attrs.keys():
-                self._curport['service_%s' % attr] = attrs[attr]
-            for field in ['service_conf', 'service_rpcnum',
-                          'service_lowver', 'service_highver']:
+                self._curport["service_%s" % attr] = attrs[attr]
+            for field in [
+                "service_conf",
+                "service_rpcnum",
+                "service_lowver",
+                "service_highver",
+            ]:
                 if field in self._curport:
                     self._curport[field] = int(self._curport[field])
-        elif name == 'script':
+        elif name == "script":
             if self._curscript is not None:
-                utils.LOGGER.warning("self._curscript should be None at this "
-                                     "point (got %r)", self._curscript)
-            self._curscript = dict([attr, attrs[attr]]
-                                   for attr in attrs.keys())
-        elif name in ['table', 'elem']:
-            if self._curscript.get('id') in IGNORE_TABLE_ELEMS:
+                utils.LOGGER.warning(
+                    "self._curscript should be None at this " "point (got %r)",
+                    self._curscript,
+                )
+            self._curscript = dict(
+                [attr, attrs[attr]] for attr in attrs.keys()
+            )
+        elif name in ["table", "elem"]:
+            if self._curscript.get("id") in IGNORE_TABLE_ELEMS:
                 return
-            if name == 'elem':
+            if name == "elem":
                 # start recording characters
                 if self._curdata is not None:
-                    utils.LOGGER.warning("self._curdata should be None at "
-                                         "this point (got %r)", self._curdata)
-                self._curdata = ''
-            if 'key' in attrs:
-                key = attrs['key'].replace('.', '_')
+                    utils.LOGGER.warning(
+                        "self._curdata should be None at "
+                        "this point (got %r)",
+                        self._curdata,
+                    )
+                self._curdata = ""
+            if "key" in attrs:
+                key = attrs["key"].replace(".", "_")
                 obj = {key: {}}
             else:
                 key = None
@@ -1589,88 +1757,96 @@ class NmapHandler(ContentHandler):
                 else:
                     lastlevel[k].update(obj)
             self._curtablepath.append(key)
-        elif name == 'os':
-            self._curhost['os'] = {}
-        elif name == 'portused' and 'os' in self._curhost:
-            self._curhost['os']['portused'] = {
-                'port': '%s_%s' % (attrs['proto'], attrs['portid']),
-                'state': attrs['state'],
+        elif name == "os":
+            self._curhost["os"] = {}
+        elif name == "portused" and "os" in self._curhost:
+            self._curhost["os"]["portused"] = {
+                "port": "%s_%s" % (attrs["proto"], attrs["portid"]),
+                "state": attrs["state"],
             }
-        elif name in ['osclass', 'osmatch'] and 'os' in self._curhost:
-            self._curhost['os'].setdefault(name, []).append(dict(attrs))
-        elif name == 'osfingerprint' and 'os' in self._curhost:
-            self._curhost['os']['fingerprint'] = attrs['fingerprint']
-        elif name == 'trace':
+        elif name in ["osclass", "osmatch"] and "os" in self._curhost:
+            self._curhost["os"].setdefault(name, []).append(dict(attrs))
+        elif name == "osfingerprint" and "os" in self._curhost:
+            self._curhost["os"]["fingerprint"] = attrs["fingerprint"]
+        elif name == "trace":
             if self._curtrace is not None:
-                utils.LOGGER.warning("self._curtrace should be None at this "
-                                     "point (got %r)", self._curtrace)
-            if 'proto' not in attrs:
-                self._curtrace = {'protocol': None}
-            elif attrs['proto'] in ['tcp', 'udp']:
-                self._curtrace = {'protocol': attrs['proto'],
-                                  'port': int(attrs['port'])}
+                utils.LOGGER.warning(
+                    "self._curtrace should be None at this " "point (got %r)",
+                    self._curtrace,
+                )
+            if "proto" not in attrs:
+                self._curtrace = {"protocol": None}
+            elif attrs["proto"] in ["tcp", "udp"]:
+                self._curtrace = {
+                    "protocol": attrs["proto"],
+                    "port": int(attrs["port"]),
+                }
             else:
-                self._curtrace = {'protocol': attrs['proto']}
-            self._curtrace['hops'] = []
-        elif name == 'hop' and self._curtrace is not None:
+                self._curtrace = {"protocol": attrs["proto"]}
+            self._curtrace["hops"] = []
+        elif name == "hop" and self._curtrace is not None:
             attrsdict = dict(attrs)
             try:
-                attrsdict['rtt'] = float(attrs['rtt'])
+                attrsdict["rtt"] = float(attrs["rtt"])
             except ValueError:
                 pass
             try:
-                attrsdict['ttl'] = int(attrs['ttl'])
+                attrsdict["ttl"] = int(attrs["ttl"])
             except ValueError:
                 pass
-            if 'host' in attrsdict:
-                attrsdict['domains'] = list(
-                    utils.get_domains(attrsdict['host'])
+            if "host" in attrsdict:
+                attrsdict["domains"] = list(
+                    utils.get_domains(attrsdict["host"])
                 )
-            self._curtrace['hops'].append(attrsdict)
-        elif name == 'cpe':
+            self._curtrace["hops"].append(attrsdict)
+        elif name == "cpe":
             # start recording
-            self._curdata = ''
+            self._curdata = ""
 
     def endElement(self, name):
-        if name == 'nmaprun':
+        if name == "nmaprun":
             self._curscan = None
-        elif name == 'host':
+        elif name == "host":
             # masscan -oX output has no "state" tag
-            if self._curhost.get('state', 'up') == 'up' and (
-                    not self._needports or
-                    'ports' in self._curhost
-            ) and (
-                not self._needopenports or
-                self._curhost.get('openports', {}).get('count')
+            if (
+                self._curhost.get("state", "up") == "up"
+                and (not self._needports or "ports" in self._curhost)
+                and (
+                    not self._needopenports
+                    or self._curhost.get("openports", {}).get("count")
+                )
             ):
-                if 'openports' not in self._curhost:
-                    self._curhost['openports'] = {'count': 0}
-                elif 'state' not in self._curhost:
+                if "openports" not in self._curhost:
+                    self._curhost["openports"] = {"count": 0}
+                elif "state" not in self._curhost:
                     # hosts with an open port are marked as up by
                     # default (masscan)
-                    self._curhost['state'] = 'up'
+                    self._curhost["state"] = "up"
                 self._pre_addhost()
                 self._addhost()
             self._curhost = None
-        elif name == 'hostnames':
-            self._curhost['hostnames'] = self._curhostnames
+        elif name == "hostnames":
+            self._curhost["hostnames"] = self._curhostnames
             self._curhostnames = None
-        elif name == 'extraports':
-            self._curhost.setdefault(
-                'extraports', {}).update(self._curextraports)
+        elif name == "extraports":
+            self._curhost.setdefault("extraports", {}).update(
+                self._curextraports
+            )
             self._curextraports = None
-        elif name == 'port':
-            self._curhost.setdefault('ports', []).append(self._curport)
-            if self._curport.get("state_state") == 'open':
-                openports = self._curhost.setdefault('openports', {})
-                openports['count'] = openports.get('count', 0) + 1
+        elif name == "port":
+            self._curhost.setdefault("ports", []).append(self._curport)
+            if self._curport.get("state_state") == "open":
+                openports = self._curhost.setdefault("openports", {})
+                openports["count"] = openports.get("count", 0) + 1
                 protoopenports = openports.setdefault(
-                    self._curport['protocol'], {})
-                protoopenports['count'] = protoopenports.get('count', 0) + 1
-                protoopenports.setdefault('ports', []).append(
-                    self._curport['port'])
+                    self._curport["protocol"], {}
+                )
+                protoopenports["count"] = protoopenports.get("count", 0) + 1
+                protoopenports.setdefault("ports", []).append(
+                    self._curport["port"]
+                )
             self._curport = None
-        elif name == 'script':
+        elif name == "script":
             if self._curport is not None:
                 current = self._curport
             elif self._curhost is not None:
@@ -1681,22 +1857,24 @@ class NmapHandler(ContentHandler):
                 # postrule)
                 self._curscript = None
                 if self._curtablepath:
-                    utils.LOGGER.warning("self._curtablepath should be empty, "
-                                         "got [%r]", self._curtablepath)
+                    utils.LOGGER.warning(
+                        "self._curtablepath should be empty, " "got [%r]",
+                        self._curtablepath,
+                    )
                 self._curtable = {}
                 return
-            if self._curscript['id'] in SCREENSHOTS_SCRIPTS:
-                fname = SCREENSHOTS_SCRIPTS[self._curscript['id']](
+            if self._curscript["id"] in SCREENSHOTS_SCRIPTS:
+                fname = SCREENSHOTS_SCRIPTS[self._curscript["id"]](
                     self._curscript
                 )
                 if fname is not None:
                     exceptions = []
-                    for full_fname in [fname,
-                                       os.path.join(
-                                           os.path.dirname(self._fname),
-                                           fname)]:
+                    for full_fname in [
+                        fname,
+                        os.path.join(os.path.dirname(self._fname), fname),
+                    ]:
                         try:
-                            with open(full_fname, 'rb') as fdesc:
+                            with open(full_fname, "rb") as fdesc:
                                 data = fdesc.read()
                                 trim_result = utils.trim_image(data)
                                 if trim_result:
@@ -1705,13 +1883,13 @@ class NmapHandler(ContentHandler):
                                     if trim_result is not True:
                                         # Image has been trimmed
                                         data = trim_result
-                                    current['screenshot'] = "field"
-                                    current['screendata'] = self._to_binary(
+                                    current["screenshot"] = "field"
+                                    current["screendata"] = self._to_binary(
                                         data
                                     )
                                     screenwords = utils.screenwords(data)
                                     if screenwords is not None:
-                                        current['screenwords'] = screenwords
+                                        current["screenwords"] = screenwords
                         except Exception:
                             exceptions.append((sys.exc_info(), full_fname))
                         else:
@@ -1720,21 +1898,27 @@ class NmapHandler(ContentHandler):
                     for exc_info, full_fname in exceptions:
                         utils.LOGGER.warning(
                             "Screenshot: exception (scanfile %r, file %r)",
-                            self._fname, full_fname, exc_info=exc_info,
+                            self._fname,
+                            full_fname,
+                            exc_info=exc_info,
                         )
             if ignore_script(self._curscript):
                 if self._curtablepath:
-                    utils.LOGGER.warning("self._curtablepath should be empty,"
-                                         " got [%r]", self._curtablepath)
+                    utils.LOGGER.warning(
+                        "self._curtablepath should be empty," " got [%r]",
+                        self._curtablepath,
+                    )
                 self._curtable = {}
                 self._curscript = None
                 return
-            infokey = self._curscript.get('id', None)
+            infokey = self._curscript.get("id", None)
             infokey = ALIASES_TABLE_ELEMS.get(infokey, infokey)
             if self._curtable:
                 if self._curtablepath:
-                    utils.LOGGER.warning("self._curtablepath should be empty, "
-                                         "got [%r]", self._curtablepath)
+                    utils.LOGGER.warning(
+                        "self._curtablepath should be empty, " "got [%r]",
+                        self._curtablepath,
+                    )
                 if infokey in CHANGE_TABLE_ELEMS:
                     self._curtable = CHANGE_TABLE_ELEMS[infokey](
                         self._curtable
@@ -1744,7 +1928,7 @@ class NmapHandler(ContentHandler):
             elif infokey in ADD_TABLE_ELEMS:
                 infos = ADD_TABLE_ELEMS[infokey]
                 if isinstance(infos, utils.REGEXP_T):
-                    infos = infos.search(self._curscript.get('output', ''))
+                    infos = infos.search(self._curscript.get("output", ""))
                     if infos is not None:
                         infosdict = infos.groupdict()
                         if infosdict:
@@ -1757,12 +1941,12 @@ class NmapHandler(ContentHandler):
                     infos = infos(self._curscript)
                     if infos is not None:
                         self._curscript[infokey] = infos
-            current.setdefault('scripts', []).append(self._curscript)
+            current.setdefault("scripts", []).append(self._curscript)
             self._curscript = None
-        elif name in ['table', 'elem']:
-            if self._curscript.get('id') in IGNORE_TABLE_ELEMS:
+        elif name in ["table", "elem"]:
+            if self._curscript.get("id") in IGNORE_TABLE_ELEMS:
                 return
-            if name == 'elem':
+            if name == "elem":
                 lastlevel = self._curtable
                 for k in self._curtablepath[:-1]:
                     if k is None:
@@ -1774,22 +1958,21 @@ class NmapHandler(ContentHandler):
                     lastlevel.append(self._curdata)
                 else:
                     lastlevel[k] = self._curdata
-                if k == 'cpe':
+                if k == "cpe":
                     self._add_cpe_to_host()
                 # stop recording characters
                 self._curdata = None
             self._curtablepath.pop()
-        elif name == 'hostscript' and 'scripts' in self._curhost:
+        elif name == "hostscript" and "scripts" in self._curhost:
             # "fake" port element, without a "protocol" key and with the
             # magic value -1 for the "port" key.
-            self._curhost.setdefault('ports', []).append({
-                "port": -1,
-                "scripts": self._curhost.pop('scripts')
-            })
-        elif name == 'trace':
-            self._curhost.setdefault('traces', []).append(self._curtrace)
+            self._curhost.setdefault("ports", []).append(
+                {"port": -1, "scripts": self._curhost.pop("scripts")}
+            )
+        elif name == "trace":
+            self._curhost.setdefault("traces", []).append(self._curtrace)
             self._curtrace = None
-        elif name == 'cpe':
+        elif name == "cpe":
             self._add_cpe_to_host()
 
     def masscan_post_script(self, script):
@@ -1799,7 +1982,7 @@ class NmapHandler(ContentHandler):
                 "s7-info": self.masscan_post_s7info,
                 "ssl-cert": self.masscan_post_x509,
                 "ssh-banner": self.masscan_post_ssh,
-            }[script['id']]
+            }[script["id"]]
         except KeyError:
             pass
         else:
@@ -1807,7 +1990,7 @@ class NmapHandler(ContentHandler):
 
     def masscan_post_s7info(self, script):
         try:
-            data = self._from_binary(script['masscan']['raw'])
+            data = self._from_binary(script["masscan"]["raw"])
         except KeyError:
             return
         try:
@@ -1824,164 +2007,199 @@ class NmapHandler(ContentHandler):
     def _read_ssh_msgs(data):
         while data:
             if len(data) < 4:
-                utils.LOGGER.warning('Incomplete SSH message [%r]', data)
+                utils.LOGGER.warning("Incomplete SSH message [%r]", data)
                 return
-            length = struct.unpack('>I', data[:4])[0]
+            length = struct.unpack(">I", data[:4])[0]
             data = data[4:]
             if len(data) < length:
-                utils.LOGGER.warning('Incomplete SSH message [%r] expected '
-                                     'length %d', data, length)
+                utils.LOGGER.warning(
+                    "Incomplete SSH message [%r] expected " "length %d",
+                    data,
+                    length,
+                )
                 return
             curdata, data = data[:length], data[length:]
             if length < 2:
-                utils.LOGGER.warning('SSH message too short (%d < 2)',
-                                     length)
+                utils.LOGGER.warning("SSH message too short (%d < 2)", length)
                 continue
-            padlen = struct.unpack('B', curdata[:1])[0]
+            padlen = struct.unpack("B", curdata[:1])[0]
             if len(curdata) < padlen + 1:
-                utils.LOGGER.warning('Incomplete SSH message [%r] padding '
-                                     'length %d', curdata, padlen)
+                utils.LOGGER.warning(
+                    "Incomplete SSH message [%r] padding " "length %d",
+                    curdata,
+                    padlen,
+                )
                 continue
             curdata = curdata[1:-padlen]
             if not curdata:
-                utils.LOGGER.warning('Empty SSH message')
+                utils.LOGGER.warning("Empty SSH message")
                 continue
-            msgtype, curdata = struct.unpack('B', curdata[:1])[0], curdata[1:]
+            msgtype, curdata = struct.unpack("B", curdata[:1])[0], curdata[1:]
             if msgtype == 21:
                 # new keys, messages after this will be encrypted
                 if curdata:
-                    utils.LOGGER.warning('Non-empty SSH message [%r]', curdata)
+                    utils.LOGGER.warning("Non-empty SSH message [%r]", curdata)
                 return
             yield msgtype, curdata
 
     _ssh_key_exchange_data = [
-        'kex_algorithms', 'server_host_key_algorithms',
-        'encryption_algorithms_client_to_server',
-        'encryption_algorithms_server_to_client',
-        'mac_algorithms_client_to_server', 'mac_algorithms_server_to_client',
-        'compression_algorithms_client_to_server',
-        'compression_algorithms_server_to_client',
-        'languages_client_to_server', 'languages_server_to_client'
+        "kex_algorithms",
+        "server_host_key_algorithms",
+        "encryption_algorithms_client_to_server",
+        "encryption_algorithms_server_to_client",
+        "mac_algorithms_client_to_server",
+        "mac_algorithms_server_to_client",
+        "compression_algorithms_client_to_server",
+        "compression_algorithms_server_to_client",
+        "languages_client_to_server",
+        "languages_server_to_client",
     ]
 
     _ssh_key_exchange_data_pairs = [
-        'encryption_algorithms', 'mac_algorithms', 'compression_algorithms',
-        'languages',
+        "encryption_algorithms",
+        "mac_algorithms",
+        "compression_algorithms",
+        "languages",
     ]
 
     @classmethod
     def _read_ssh_key_exchange_init(cls, data):
         # cookie
         if len(data) < 16:
-            utils.LOGGER.warning('SSH key exchange init message too '
-                                 'short [%r] (len == %d < 16)',
-                                 data, len(data))
+            utils.LOGGER.warning(
+                "SSH key exchange init message too "
+                "short [%r] (len == %d < 16)",
+                data,
+                len(data),
+            )
             return
         data = data[16:]
         keys = cls._ssh_key_exchange_data[::-1]
         while data and keys:
             if len(data) < 4:
-                utils.LOGGER.warning('Incomplete SSH key exchange init message'
-                                     ' part [%r]', data)
+                utils.LOGGER.warning(
+                    "Incomplete SSH key exchange init message" " part [%r]",
+                    data,
+                )
                 return
-            length = struct.unpack('>I', data[:4])[0]
+            length = struct.unpack(">I", data[:4])[0]
             data = data[4:]
             curdata, data = data[:length], data[length:]
             if curdata:
-                yield keys.pop(), curdata.decode().split(',')
+                yield keys.pop(), curdata.decode().split(",")
             else:
                 yield keys.pop(), []
 
     def masscan_post_ssh(self, script):
         script["id"] = "banner"
         try:
-            data = self._from_binary(script['masscan']['raw'])
+            data = self._from_binary(script["masscan"]["raw"])
         except KeyError:
             return
         try:
             idx = data.index(b"\n")
         except ValueError:
             return
-        script['output'] = utils.nmap_encode_data(data[:idx].rstrip(b'\r'))
+        script["output"] = utils.nmap_encode_data(data[:idx].rstrip(b"\r"))
         # this requires a patched version of masscan
-        for msgtype, msg in self._read_ssh_msgs(data[idx + 1:]):
+        for msgtype, msg in self._read_ssh_msgs(data[idx + 1 :]):
             if msgtype == 20:  # key exchange init
-                ssh2_enum_out = ['']
+                ssh2_enum_out = [""]
                 ssh2_enum = dict(self._read_ssh_key_exchange_init(msg))
                 for key in self._ssh_key_exchange_data_pairs:
-                    keyc2s, keys2c = ('%s_client_to_server' % key,
-                                      '%s_server_to_client' % key)
-                    if keyc2s in ssh2_enum and \
-                       ssh2_enum[keyc2s] == ssh2_enum[keys2c]:
+                    keyc2s, keys2c = (
+                        "%s_client_to_server" % key,
+                        "%s_server_to_client" % key,
+                    )
+                    if (
+                        keyc2s in ssh2_enum
+                        and ssh2_enum[keyc2s] == ssh2_enum[keys2c]
+                    ):
                         ssh2_enum[key] = ssh2_enum.pop(keyc2s)
                         del ssh2_enum[keys2c]
                 # preserve output order
                 for key in [
-                        'kex_algorithms', 'server_host_key_algorithms',
-                        'encryption_algorithms',
-                        'encryption_algorithms_client_to_server',
-                        'encryption_algorithms_server_to_client',
-                        'mac_algorithms', 'mac_algorithms_client_to_server',
-                        'mac_algorithms_server_to_client',
-                        'compression_algorithms',
-                        'compression_algorithms_client_to_server',
-                        'compression_algorithms_server_to_client',
-                        'languages', 'languages_client_to_server',
-                        'languages_server_to_client'
+                    "kex_algorithms",
+                    "server_host_key_algorithms",
+                    "encryption_algorithms",
+                    "encryption_algorithms_client_to_server",
+                    "encryption_algorithms_server_to_client",
+                    "mac_algorithms",
+                    "mac_algorithms_client_to_server",
+                    "mac_algorithms_server_to_client",
+                    "compression_algorithms",
+                    "compression_algorithms_client_to_server",
+                    "compression_algorithms_server_to_client",
+                    "languages",
+                    "languages_client_to_server",
+                    "languages_server_to_client",
                 ]:
                     if key in ssh2_enum:
                         value = ssh2_enum[key]
-                        ssh2_enum_out.append('  %s (%d)' % (key, len(value)))
-                        ssh2_enum_out.extend('      %s' % v for v in value)
-                self._curport.setdefault('scripts', []).append({
-                    'id': 'ssh2-enum-algos',
-                    'output': '\n'.join(ssh2_enum_out),
-                    'ssh2-enum-algos': ssh2_enum,
-                })
+                        ssh2_enum_out.append("  %s (%d)" % (key, len(value)))
+                        ssh2_enum_out.extend("      %s" % v for v in value)
+                self._curport.setdefault("scripts", []).append(
+                    {
+                        "id": "ssh2-enum-algos",
+                        "output": "\n".join(ssh2_enum_out),
+                        "ssh2-enum-algos": ssh2_enum,
+                    }
+                )
                 continue
             if msgtype == 31:
-                host_key_length = struct.unpack('>I', msg[:4])[0]
-                host_key_length_data = msg[4:4 + host_key_length]
+                host_key_length = struct.unpack(">I", msg[:4])[0]
+                host_key_length_data = msg[4 : 4 + host_key_length]
                 info = utils.parse_ssh_key(host_key_length_data)
                 # TODO this might be somehow factorized with
                 # view.py:_extract_passive_SSH_SERVER_HOSTKEY()
                 value = utils.encode_b64(host_key_length_data).decode()
-                ssh_hostkey = {'type': info['algo'],
-                               'key': value}
-                if 'bits' in info:
-                    ssh_hostkey['bits'] = info['bits']
-                ssh_hostkey['fingerprint'] = info['md5']
-                fingerprint = utils.decode_hex(info['md5'])
-                self._curport.setdefault('scripts', []).append({
-                    'id': 'ssh-hostkey',
-                    'ssh-hostkey': [ssh_hostkey],
-                    'output': '\n  %s %s (%s)\n%s %s' % (
-                        ssh_hostkey.get('bits', '-'),
-                        ':'.join('%02x' % (
-                            ord(i) if isinstance(i, (bytes, str)) else i
-                        ) for i in fingerprint),
-                        {'ecdsa-sha2-nistp256': 'ECDSA'}.get(
-                            ssh_hostkey['type'],
-                            (ssh_hostkey['type'][4:]
-                             if ssh_hostkey['type'][:4] == 'ssh-'
-                             else ssh_hostkey['type']).upper()
+                ssh_hostkey = {"type": info["algo"], "key": value}
+                if "bits" in info:
+                    ssh_hostkey["bits"] = info["bits"]
+                ssh_hostkey["fingerprint"] = info["md5"]
+                fingerprint = utils.decode_hex(info["md5"])
+                self._curport.setdefault("scripts", []).append(
+                    {
+                        "id": "ssh-hostkey",
+                        "ssh-hostkey": [ssh_hostkey],
+                        "output": "\n  %s %s (%s)\n%s %s"
+                        % (
+                            ssh_hostkey.get("bits", "-"),
+                            ":".join(
+                                "%02x"
+                                % (
+                                    ord(i)
+                                    if isinstance(i, (bytes, str))
+                                    else i
+                                )
+                                for i in fingerprint
+                            ),
+                            {"ecdsa-sha2-nistp256": "ECDSA"}.get(
+                                ssh_hostkey["type"],
+                                (
+                                    ssh_hostkey["type"][4:]
+                                    if ssh_hostkey["type"][:4] == "ssh-"
+                                    else ssh_hostkey["type"]
+                                ).upper(),
+                            ),
+                            ssh_hostkey["type"],
+                            value,
                         ),
-                        ssh_hostkey['type'],
-                        value
-                    ),
-                })
+                    }
+                )
                 continue
 
     def masscan_post_x509(self, script):
         try:
-            data = self._from_binary(script['masscan']['raw'])
+            data = self._from_binary(script["masscan"]["raw"])
         except KeyError:
             return
         try:
             output_text, output_data = create_ssl_cert(data)
         except Exception:
-            utils.LOGGER.warning('Cannot parse certificate %r', data,
-                                 exc_info=True)
+            utils.LOGGER.warning(
+                "Cannot parse certificate %r", data, exc_info=True
+            )
             return
         if output_data:
             script["output"] = "\n".join(output_text)
@@ -1989,23 +2207,23 @@ class NmapHandler(ContentHandler):
 
     def masscan_post_http(self, script):
         header = re.search(
-            re.escape(b'\nServer:') + b'[ \\\t]*([^\\\r\\\n]*)\\\r?(?:\\\n|$)',
-            self._from_binary(script['masscan']['raw']),
+            re.escape(b"\nServer:") + b"[ \\\t]*([^\\\r\\\n]*)\\\r?(?:\\\n|$)",
+            self._from_binary(script["masscan"]["raw"]),
         )
         if header is None:
             return
         header = header.groups()[0]
         if not header:
             return
-        self._curport.setdefault('scripts', []).append({
-            "id": "http-server-header",
-            "output": utils.nmap_encode_data(header),
-            "masscan": {
-                "raw": self._to_binary(header),
-            },
-        })
+        self._curport.setdefault("scripts", []).append(
+            {
+                "id": "http-server-header",
+                "output": utils.nmap_encode_data(header),
+                "masscan": {"raw": self._to_binary(header)},
+            }
+        )
         # XXX use fingerprints
-        self._curport['service_product'] = utils.nmap_encode_data(header)
+        self._curport["service_product"] = utils.nmap_encode_data(header)
 
     def _add_cpe_to_host(self):
         """Adds the cpe in self._curdata to the host-wide cpe list, taking
@@ -2018,26 +2236,29 @@ class NmapHandler(ContentHandler):
 
         # What is the path to reach this CPE?
         if self._curport is not None:
-            if self._curscript is not None and 'id' in self._curscript:
+            if self._curscript is not None and "id" in self._curscript:
                 # Should not happen, but handle the case anyway
-                path = ('ports{port:%s, scripts.id:%s}'
-                        % (self._curport['port'], self._curscript['id']))
+                path = "ports{port:%s, scripts.id:%s}" % (
+                    self._curport["port"],
+                    self._curscript["id"],
+                )
             else:
-                path = 'ports.port:%s' % self._curport['port']
+                path = "ports.port:%s" % self._curport["port"]
 
-        elif self._curscript is not None and 'id' in self._curscript:
+        elif self._curscript is not None and "id" in self._curscript:
             # Host-wide script
-            path = 'scripts.id:%s' % self._curscript['id']
+            path = "scripts.id:%s" % self._curscript["id"]
 
-        elif 'os' in self._curhost and\
-                self._curhost['os'].get('osmatch', []):  # Host-wide
-            lastosmatch = self._curhost['os']['osmatch'][-1]
-            line = lastosmatch['line']
+        elif "os" in self._curhost and self._curhost["os"].get(
+            "osmatch", []
+        ):  # Host-wide
+            lastosmatch = self._curhost["os"]["osmatch"][-1]
+            line = lastosmatch["line"]
             path = "os.osmatch.line:%s" % line
 
         # CPEs are indexed in a dictionary to agglomerate origins, but
         # this dict is replaced with its values() in _pre_addhost.
-        cpes = self._curhost.setdefault('cpes', {})
+        cpes = self._curhost.setdefault("cpes", {})
         if cpe not in cpes:
             try:
                 cpeobj = cpe2dict(cpe)
@@ -2047,7 +2268,7 @@ class NmapHandler(ContentHandler):
             cpes[cpe] = cpeobj
         else:
             cpeobj = cpes[cpe]
-        cpeobj.setdefault('origins', []).append(path)
+        cpeobj.setdefault("origins", []).append(path)
 
     def characters(self, content):
         if self._curdata is not None:
@@ -2078,9 +2299,17 @@ class Nmap2DB(NmapHandler):
 
     """Specific handler for MongoDB backend."""
 
-    def __init__(self, fname, categories=None, source=None, callback=None,
-                 add_addr_infos=True, **kargs):
+    def __init__(
+        self,
+        fname,
+        categories=None,
+        source=None,
+        callback=None,
+        add_addr_infos=True,
+        **kargs
+    ):
         from ivre import db
+
         self._db = db.db
         if categories is None:
             self.categories = []
@@ -2089,9 +2318,14 @@ class Nmap2DB(NmapHandler):
         self._add_addr_infos = add_addr_infos
         self.source = source
         self.callback = callback
-        NmapHandler.__init__(self, fname, categories=categories,
-                             source=source, add_addr_infos=add_addr_infos,
-                             **kargs)
+        NmapHandler.__init__(
+            self,
+            fname,
+            categories=categories,
+            source=source,
+            add_addr_infos=add_addr_infos,
+            **kargs
+        )
 
     def _to_binary(self, data):
         return self._db.nmap.to_binary(data)
@@ -2101,16 +2335,19 @@ class Nmap2DB(NmapHandler):
 
     def _addhost(self):
         if self.categories:
-            self._curhost['categories'] = self.categories[:]
+            self._curhost["categories"] = self.categories[:]
         if self._add_addr_infos:
-            self._curhost['infos'] = {}
-            for func in [self._db.data.country_byip,
-                         self._db.data.as_byip,
-                         self._db.data.location_byip]:
-                self._curhost['infos'].update(func(self._curhost['addr']) or
-                                              {})
+            self._curhost["infos"] = {}
+            for func in [
+                self._db.data.country_byip,
+                self._db.data.as_byip,
+                self._db.data.location_byip,
+            ]:
+                self._curhost["infos"].update(
+                    func(self._curhost["addr"]) or {}
+                )
         if self.source:
-            self._curhost['source'] = self.source
+            self._curhost["source"] = self.source
         # We are about to insert data based on this file, so we want
         # to save the scan document
         if not self.scan_doc_saved:
@@ -2125,9 +2362,9 @@ class Nmap2DB(NmapHandler):
         return ident
 
     def _addscaninfo(self, i):
-        if 'numservices' in i:
-            i['numservices'] = int(i['numservices'])
-        if 'scaninfos' in self._curscan:
-            self._curscan['scaninfos'].append(i)
+        if "numservices" in i:
+            i["numservices"] = int(i["numservices"])
+        if "scaninfos" in self._curscan:
+            self._curscan["scaninfos"].append(i)
         else:
-            self._curscan['scaninfos'] = [i]
+            self._curscan["scaninfos"] = [i]

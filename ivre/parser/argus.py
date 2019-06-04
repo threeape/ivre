@@ -32,12 +32,20 @@ from ivre.parser import CmdParser
 class Argus(CmdParser):
     """Argus log generator"""
 
-    fields = ["proto", "dir",
-              "saddr", "sport",
-              "daddr", "dport",
-              "spkts", "dpkts",
-              "sbytes", "dbytes",
-              "stime", "ltime"]
+    fields = [
+        "proto",
+        "dir",
+        "saddr",
+        "sport",
+        "daddr",
+        "dport",
+        "spkts",
+        "dpkts",
+        "sbytes",
+        "dbytes",
+        "stime",
+        "ltime",
+    ]
     aggregation = ["saddr", "sport", "daddr", "dport", "proto"]
     timefmt = "%s.%f"
 
@@ -55,19 +63,20 @@ class Argus(CmdParser):
         if pcap_filter is not None:
             cmd.extend(["--", pcap_filter])
         super(Argus, self).__init__(
-            cmd, {} if isinstance(fdesc, basestring) else {"stdin": fdesc},
+            cmd, {} if isinstance(fdesc, basestring) else {"stdin": fdesc}
         )
         self.fdesc.readline()
 
     @classmethod
     def parse_line(cls, line):
-        fields = dict((name, val.strip().decode())
-                      for name, val in zip(cls.fields, line.split(b",")))
+        fields = dict(
+            (name, val.strip().decode())
+            for name, val in zip(cls.fields, line.split(b","))
+        )
         for fld in ["sport", "dport"]:
             try:
                 fields[fld] = int(
-                    fields[fld],
-                    16 if fields[fld].startswith("0x") else 10,
+                    fields[fld], 16 if fields[fld].startswith("0x") else 10
                 )
             except ValueError:
                 if not fields[fld]:

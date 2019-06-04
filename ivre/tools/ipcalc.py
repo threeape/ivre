@@ -23,16 +23,18 @@ try:
     import argparse
 except ImportError:
     import optparse
+
     USING_ARGPARSE = False
 else:
     USING_ARGPARSE = True
 import sys
+
 try:
     reload(sys)
 except NameError:
     pass
 else:
-    sys.setdefaultencoding('utf-8')
+    sys.setdefaultencoding("utf-8")
 
 
 from ivre import utils
@@ -41,32 +43,36 @@ from ivre import utils
 def main():
     if USING_ARGPARSE:
         parser = argparse.ArgumentParser(
-            description='Tool for ip addresses manipulation.',
+            description="Tool for ip addresses manipulation."
         )
     else:
         parser = optparse.OptionParser(
-            description='Tool for ip addresses manipulation.',)
+            description="Tool for ip addresses manipulation."
+        )
         parser.parse_args_orig = parser.parse_args
 
         def my_parse_args():
             res = parser.parse_args_orig()
-            res[0].ensure_value('ips', res[1])
+            res[0].ensure_value("ips", res[1])
             return res[0]
+
         parser.parse_args = my_parse_args
         parser.add_argument = parser.add_option
 
     if USING_ARGPARSE:
-        parser.add_argument('ips', nargs='*',
-                            help='Display results for specified IP addresses'
-                            ' or ranges.')
+        parser.add_argument(
+            "ips",
+            nargs="*",
+            help="Display results for specified IP addresses" " or ranges.",
+        )
     args = parser.parse_args()
 
     for a in args.ips:
-        if '/' in a:
+        if "/" in a:
             a = utils.net2range(a)
             print("%s-%s" % (a[0], a[1]))
-        elif '-' in a:
-            a = a.split('-', 1)
+        elif "-" in a:
+            a = a.split("-", 1)
             if a[0].isdigit():
                 a[0] = int(a[0])
             if a[1].isdigit():

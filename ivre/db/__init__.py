@@ -33,6 +33,7 @@ import struct
 import subprocess
 import sys
 import tempfile
+
 try:
     from urllib.parse import urlparse, unquote
 except ImportError:
@@ -44,9 +45,11 @@ import xml.sax
 
 from builtins import range
 from future.utils import viewitems, viewvalues
+
 # tests: I don't want to depend on cluster for now
 try:
     import cluster
+
     USE_CLUSTER = True
 except ImportError:
     USE_CLUSTER = False
@@ -76,60 +79,60 @@ class DB(object):
     relevant purpose-independent, backend-specific class.
 
     """
+
     globaldb = None
 
     def __init__(self):
         self.argparser = utils.ArgparserParent()
         self.argparser.add_argument(
-            '--country', metavar='CODE',
-            help='show only results from this country'
+            "--country",
+            metavar="CODE",
+            help="show only results from this country",
         )
         self.argparser.add_argument(
-            '--asnum', metavar='NUM[,NUM[...]]',
-            help='show only results from this(those) AS(es)'
+            "--asnum",
+            metavar="NUM[,NUM[...]]",
+            help="show only results from this(those) AS(es)",
         )
-        self.argparser.add_argument('--port', metavar='PORT')
-        self.argparser.add_argument('--service', metavar='SVC')
-        self.argparser.add_argument('--svchostname', metavar='HOSTNAME')
-        self.argparser.add_argument('--useragent', metavar='USER-AGENT',
-                                    nargs='?', const=False)
+        self.argparser.add_argument("--port", metavar="PORT")
+        self.argparser.add_argument("--service", metavar="SVC")
+        self.argparser.add_argument("--svchostname", metavar="HOSTNAME")
+        self.argparser.add_argument(
+            "--useragent", metavar="USER-AGENT", nargs="?", const=False
+        )
 
     def parse_args(self, args, flt=None):
         if flt is None:
             flt = self.flt_empty
         if args.country is not None:
-            flt = self.flt_and(flt, self.searchcountry(
-                utils.str2list(args.country)
-            ))
-        if args.asnum is not None:
-            if args.asnum[:1] in '!-':
-                flt = self.flt_and(flt, self.searchasnum(
-                    utils.str2list(args.asnum[1:]), neg=True
-                ))
-            else:
-                flt = self.flt_and(flt, self.searchasnum(
-                    utils.str2list(args.asnum)
-                ))
-        if args.port is not None:
-            port = args.port.replace('_', '/')
-            if '/' in port:
-                proto, port = port.split('/', 1)
-            else:
-                proto = 'tcp'
-            port = int(port)
             flt = self.flt_and(
-                flt,
-                self.searchport(port=port, protocol=proto)
+                flt, self.searchcountry(utils.str2list(args.country))
             )
+        if args.asnum is not None:
+            if args.asnum[:1] in "!-":
+                flt = self.flt_and(
+                    flt,
+                    self.searchasnum(utils.str2list(args.asnum[1:]), neg=True),
+                )
+            else:
+                flt = self.flt_and(
+                    flt, self.searchasnum(utils.str2list(args.asnum))
+                )
+        if args.port is not None:
+            port = args.port.replace("_", "/")
+            if "/" in port:
+                proto, port = port.split("/", 1)
+            else:
+                proto = "tcp"
+            port = int(port)
+            flt = self.flt_and(flt, self.searchport(port=port, protocol=proto))
         if args.service is not None:
             flt = self.flt_and(
-                flt,
-                self.searchservice(utils.str2regexp(args.service)),
+                flt, self.searchservice(utils.str2regexp(args.service))
             )
         if args.svchostname is not None:
             flt = self.flt_and(
-                flt,
-                self.searchsvchostname(utils.str2regexp(args.svchostname))
+                flt, self.searchsvchostname(utils.str2regexp(args.svchostname))
             )
         if args.useragent is not None:
             if args.useragent is False:
@@ -223,10 +226,10 @@ address (4 bytes if `use_ipv6` is false, 16 otherwise, using the
 standard ::ffff:A.B.C.D mapping for IPv4 addresses).
 
         """
-        result = ['asnum'] if use_asnum else []
+        result = ["asnum"] if use_asnum else []
         if use_single_int:
-            return result + ['addr']
-        return result + ['addr_%d' % d for d in range(16 if use_ipv6 else 4)]
+            return result + ["addr"]
+        return result + ["addr_%d" % d for d in range(16 if use_ipv6 else 4)]
 
     def features_addr_get(self, addr, use_asnum, use_ipv6, use_single_int):
         """Returns a list of feature values (for ML algorithms) for an IP address.
@@ -235,25 +238,28 @@ See .features_addr_list() for the number and meaning of the features.
 
         """
         if use_asnum:
-            result = [self.globaldb.data.as_byip(addr).get('as_num', 0)]
+            result = [self.globaldb.data.as_byip(addr).get("as_num", 0)]
         else:
             result = []
         if use_single_int:
             if use_ipv6:
-                return result + [utils.ip2int(addr if ':' in addr
-                                              else ('::ffff:%s' % addr))]
+                return result + [
+                    utils.ip2int(addr if ":" in addr else ("::ffff:%s" % addr))
+                ]
             return result + [utils.ip2int(addr)]
         addrbin = utils.ip2bin(addr)
         if use_ipv6:
             return result + [
-                ord(addrbin[i:i + 1]) for i in range(len(addrbin))
+                ord(addrbin[i : i + 1]) for i in range(len(addrbin))
             ]
-        return result + [
-            ord(addrbin[i:i + 1]) for i in range(len(addrbin))
-        ][-4:]
+        return (
+            result
+            + [ord(addrbin[i : i + 1]) for i in range(len(addrbin))][-4:]
+        )
 
-    def features_port_list(self, flt, yieldall, use_service, use_product,
-                           use_version):
+    def features_port_list(
+        self, flt, yieldall, use_service, use_product, use_version
+    ):
         """Returns a list of ports features (for ML algorithms) as tuples of
 existing values.
 
@@ -279,34 +285,46 @@ If `yieldall` is true, when a specific feature exists (e.g., `(80,
                 supports_sort = True
             if supports_sort:
                 return list(
-                    tuple(val) for val in
-                    self._features_port_list(flt, yieldall, use_service,
-                                             use_product, use_version)
+                    tuple(val)
+                    for val in self._features_port_list(
+                        flt, yieldall, use_service, use_product, use_version
+                    )
                 )
-            return sorted(set(
-                tuple(val) for val in
-                self._features_port_list(flt, yieldall, use_service,
-                                         use_product, use_version)
-            ), key=lambda val: [utils.key_sort_none(v) for v in val])
+            return sorted(
+                set(
+                    tuple(val)
+                    for val in self._features_port_list(
+                        flt, yieldall, use_service, use_product, use_version
+                    )
+                ),
+                key=lambda val: [utils.key_sort_none(v) for v in val],
+            )
 
         def _gen(val):
             yield tuple(val)
             for i in range(-1, -len(val), -1):
                 val[i] = None
                 yield tuple(val)
-        return sorted(set(
-            val
-            for vals in self._features_port_list(flt, yieldall, use_service,
-                                                 use_product, use_version)
-            for val in _gen(vals)
-        ), key=lambda val: [utils.key_sort_none(v) for v in val])
 
-    def _features_port_list(self, flt, yieldall, use_service, use_product,
-                            use_version):
+        return sorted(
+            set(
+                val
+                for vals in self._features_port_list(
+                    flt, yieldall, use_service, use_product, use_version
+                )
+                for val in _gen(vals)
+            ),
+            key=lambda val: [utils.key_sort_none(v) for v in val],
+        )
+
+    def _features_port_list(
+        self, flt, yieldall, use_service, use_product, use_version
+    ):
         raise NotImplementedError()
 
-    def features_port_get(self, features, flt, yieldall, use_service,
-                          use_product, use_version):
+    def features_port_get(
+        self, features, flt, yieldall, use_service, use_product, use_version
+    ):
         """Generates `(addr, port_features)` tuples where `addr` is a host IP
 address and `port_features` a list of values ports feature values (for ML
 algorithms) as lists of values.
@@ -316,16 +334,28 @@ algorithms) as lists of values.
 
         """
         features = dict((f, i) for i, f in enumerate(features))
-        return self._features_port_get(features, flt, yieldall, use_service,
-                                       use_product, use_version)
+        return self._features_port_get(
+            features, flt, yieldall, use_service, use_product, use_version
+        )
 
-    def _features_port_get(self, features, flt, yieldall, use_service,
-                           use_product, use_version):
+    def _features_port_get(
+        self, features, flt, yieldall, use_service, use_product, use_version
+    ):
         raise NotImplementedError()
 
-    def features(self, headers=True, flt=None, use_asnum=True, use_ipv6=True,
-                 use_single_int=False, yieldall=True, use_service=True,
-                 use_product=False, use_version=False, subflts=None):
+    def features(
+        self,
+        headers=True,
+        flt=None,
+        use_asnum=True,
+        use_ipv6=True,
+        use_single_int=False,
+        yieldall=True,
+        use_service=True,
+        use_product=False,
+        use_version=False,
+        subflts=None,
+    ):
         """Returns a two-element tuple. The first element is a list on feature
 names, the second is a generator of lists of feature values. This is
 meant to be used with ML algorithms).
@@ -359,32 +389,26 @@ To use this to create a pandas DataFrame, you can run:
         use_service = use_service or use_product or use_version
         use_product = use_product or use_version
         features_port = self.features_port_list(
-            flt,
-            yieldall,
-            use_service,
-            use_product,
-            use_version,
+            flt, yieldall, use_service, use_product, use_version
         )
-        headers = self.features_addr_list(
-            use_asnum,
-            use_ipv6,
-            use_single_int,
-        ) + features_port
+        headers = (
+            self.features_addr_list(use_asnum, use_ipv6, use_single_int)
+            + features_port
+        )
         if subflts:
             if isinstance(subflts[0], (list, tuple)) and len(subflts[0]) == 2:
                 generator = subflts
             else:
                 generator = enumerate(subflts)
-            headers.append('category')
+            headers.append("category")
             return (
                 headers,
                 (
                     self.features_addr_get(
-                        addr,
-                        use_asnum,
-                        use_ipv6,
-                        use_single_int,
-                    ) + features + [label]
+                        addr, use_asnum, use_ipv6, use_single_int
+                    )
+                    + features
+                    + [label]
                     for label, subflt in generator
                     for addr, features in self.features_port_get(
                         features_port,
@@ -394,18 +418,16 @@ To use this to create a pandas DataFrame, you can run:
                         use_product,
                         use_version,
                     )
-                )
+                ),
             )
         else:
             return (
                 headers,
                 (
                     self.features_addr_get(
-                        addr,
-                        use_asnum,
-                        use_ipv6,
-                        use_single_int
-                    ) + features
+                        addr, use_asnum, use_ipv6, use_single_int
+                    )
+                    + features
                     for addr, features in self.features_port_get(
                         features_port,
                         flt,
@@ -414,7 +436,7 @@ To use this to create a pandas DataFrame, you can run:
                         use_product,
                         use_version,
                     )
-                )
+                ),
             )
 
     @staticmethod
@@ -440,15 +462,15 @@ To use this to create a pandas DataFrame, you can run:
 
     @classmethod
     def searchipv4(cls):
-        return cls.searchnet('0.0.0.0/0')
+        return cls.searchnet("0.0.0.0/0")
 
     @classmethod
     def searchipv6(cls):
-        return cls.searchnet('0.0.0.0/0', neg=True)
+        return cls.searchnet("0.0.0.0/0", neg=True)
 
     def searchphpmyadmin(self):
         """Finds phpMyAdmin instances based on its cookies."""
-        return self.searchcookie('phpMyAdmin')
+        return self.searchcookie("phpMyAdmin")
 
     def searchcookie(self, name):
         """Finds specific cookie names.
@@ -472,9 +494,12 @@ To use this to create a pandas DataFrame, you can run:
         execution by finding backdoors/shells/vulnerabilities.
 
         """
-        return self.searchfile(fname=re.compile(
-            'vhost|www|web\\.config|\\.htaccess|\\.([aj]sp|php|html?|js|css)',
-            re.I))
+        return self.searchfile(
+            fname=re.compile(
+                "vhost|www|web\\.config|\\.htaccess|\\.([aj]sp|php|html?|js|css)",
+                re.I,
+            )
+        )
 
     def searchfile(self, fname=None, scripts=None):
         """Finds shared files or directories from a name or a
@@ -486,7 +511,7 @@ To use this to create a pandas DataFrame, you can run:
     def searchjavaua(self):
         """Finds Java User-Agent."""
         return self.searchuseragent(
-            useragent=re.compile('(^| )(Java|javaws)/', flags=0),
+            useragent=re.compile("(^| )(Java|javaws)/", flags=0)
         )
 
     @staticmethod
@@ -511,7 +536,7 @@ To use this to create a pandas DataFrame, you can run:
         typically implemented in the backend-specific subclasses
 
         """
-        return record['_id']
+        return record["_id"]
 
     @classmethod
     def searchid(cls, oid, neg=False):
@@ -536,18 +561,19 @@ To use this to create a pandas DataFrame, you can run:
         """Returns the key and the value to search for according
         to the nature of the given argument for ja3 filtering"""
         if isinstance(value_or_hash, utils.REGEXP_T):
-            return ('raw', value_or_hash)
+            return ("raw", value_or_hash)
         if utils.HEX.search(value_or_hash):
-            key = {32: 'md5', 40: 'sha1',
-                   64: 'sha256'}.get(len(value_or_hash), 'raw')
+            key = {32: "md5", 40: "sha1", 64: "sha256"}.get(
+                len(value_or_hash), "raw"
+            )
         else:
-            key = 'raw'
+            key = "raw"
         # If we have the raw value, we compute the MD5 hash because it
         # is indexed, so it will be faster to query.
-        if key == 'raw':
+        if key == "raw":
             return (
-                'md5',
-                utils.hashlib.new('md5', value_or_hash.encode()).hexdigest(),
+                "md5",
+                utils.hashlib.new("md5", value_or_hash.encode()).hexdigest(),
             )
         return (key, value_or_hash)
 
@@ -562,13 +588,14 @@ To use this to create a pandas DataFrame, you can run:
         raise NotImplementedError
 
     if USE_CLUSTER:
+
         @staticmethod
         def hierarchical_clustering(values):
             """Returns a cluster
             """
             return cluster.HierarchicalClustering(
                 [rec for rec in values],
-                lambda x, y: abs(x['mean'] - y['mean'])
+                lambda x, y: abs(x["mean"] - y["mean"]),
             )
 
     @staticmethod
@@ -596,66 +623,88 @@ class DBActive(DB):
                 8: (9, self.__migrate_schema_hosts_8_9),
                 9: (10, self.__migrate_schema_hosts_9_10),
                 10: (11, self.__migrate_schema_hosts_10_11),
-            },
+            }
         }
         self.argparser.add_argument(
-            '--category', metavar='CAT',
-            help='show only results from this category'
+            "--category",
+            metavar="CAT",
+            help="show only results from this category",
         )
         self.argparser.add_argument(
-            '--asname', metavar='NAME',
-            help='show only results from this(those) AS(es)'
+            "--asname",
+            metavar="NAME",
+            help="show only results from this(those) AS(es)",
         )
-        self.argparser.add_argument('--source', metavar='SRC',
-                                    help='show only results from this source')
-        self.argparser.add_argument('--version', metavar="VERSION", type=int)
-        self.argparser.add_argument('--timeago', metavar='SECONDS', type=int)
+        self.argparser.add_argument(
+            "--source",
+            metavar="SRC",
+            help="show only results from this source",
+        )
+        self.argparser.add_argument("--version", metavar="VERSION", type=int)
+        self.argparser.add_argument("--timeago", metavar="SECONDS", type=int)
         if utils.USE_ARGPARSE:
-            self.argparser.add_argument('--id', metavar='ID', help='show only '
-                                        'results with this(those) ID(s)',
-                                        nargs='+')
-            self.argparser.add_argument('--no-id', metavar='ID', help='show '
-                                        'only results WITHOUT this(those) '
-                                        'ID(s)', nargs='+')
+            self.argparser.add_argument(
+                "--id",
+                metavar="ID",
+                help="show only " "results with this(those) ID(s)",
+                nargs="+",
+            )
+            self.argparser.add_argument(
+                "--no-id",
+                metavar="ID",
+                help="show " "only results WITHOUT this(those) " "ID(s)",
+                nargs="+",
+            )
         else:
-            self.argparser.add_argument('--id', metavar='ID', help='show only '
-                                        'results with this ID')
-            self.argparser.add_argument('--no-id', metavar='ID', help='show '
-                                        'only results WITHOUT this ID')
-        self.argparser.add_argument('--host', metavar='IP')
-        self.argparser.add_argument('--hostname', metavar='NAME / ~NAME')
-        self.argparser.add_argument('--domain', metavar='NAME / ~NAME')
-        self.argparser.add_argument('--net', metavar='IP/MASK')
-        self.argparser.add_argument('--range', metavar='IP', nargs=2)
-        self.argparser.add_argument('--hop', metavar='IP')
-        self.argparser.add_argument('--not-port', metavar='PORT')
-        self.argparser.add_argument('--openport', action='store_true')
-        self.argparser.add_argument('--no-openport', action='store_true')
-        self.argparser.add_argument('--countports', metavar='COUNT',
-                                    help='show only results with a number of '
-                                    'open ports within the provided range',
-                                    nargs=2)
-        self.argparser.add_argument('--no-countports', metavar='COUNT',
-                                    help='show only results with a number of '
-                                    'open ports NOT within the provided range',
-                                    nargs=2)
-        self.argparser.add_argument('--script', metavar='ID[:OUTPUT]')
-        self.argparser.add_argument('--no-script', metavar='ID[:OUTPUT]')
-        self.argparser.add_argument('--os')
-        self.argparser.add_argument('--anonftp', action='store_true')
-        self.argparser.add_argument('--anonldap', action='store_true')
-        self.argparser.add_argument('--authhttp', action='store_true')
-        self.argparser.add_argument('--authbypassvnc', action='store_true')
-        self.argparser.add_argument('--ypserv', '--nis', action='store_true')
-        self.argparser.add_argument('--nfs', action='store_true')
-        self.argparser.add_argument('--x11', action='store_true')
-        self.argparser.add_argument('--xp445', action='store_true')
-        self.argparser.add_argument('--httphdr')
-        self.argparser.add_argument('--owa', action='store_true')
-        self.argparser.add_argument('--vuln-boa', '--vuln-intersil',
-                                    action='store_true')
-        self.argparser.add_argument('--torcert', action='store_true')
-        self.argparser.add_argument('--sshkey', metavar="FINGERPRINT")
+            self.argparser.add_argument(
+                "--id", metavar="ID", help="show only " "results with this ID"
+            )
+            self.argparser.add_argument(
+                "--no-id",
+                metavar="ID",
+                help="show " "only results WITHOUT this ID",
+            )
+        self.argparser.add_argument("--host", metavar="IP")
+        self.argparser.add_argument("--hostname", metavar="NAME / ~NAME")
+        self.argparser.add_argument("--domain", metavar="NAME / ~NAME")
+        self.argparser.add_argument("--net", metavar="IP/MASK")
+        self.argparser.add_argument("--range", metavar="IP", nargs=2)
+        self.argparser.add_argument("--hop", metavar="IP")
+        self.argparser.add_argument("--not-port", metavar="PORT")
+        self.argparser.add_argument("--openport", action="store_true")
+        self.argparser.add_argument("--no-openport", action="store_true")
+        self.argparser.add_argument(
+            "--countports",
+            metavar="COUNT",
+            help="show only results with a number of "
+            "open ports within the provided range",
+            nargs=2,
+        )
+        self.argparser.add_argument(
+            "--no-countports",
+            metavar="COUNT",
+            help="show only results with a number of "
+            "open ports NOT within the provided range",
+            nargs=2,
+        )
+        self.argparser.add_argument("--script", metavar="ID[:OUTPUT]")
+        self.argparser.add_argument("--no-script", metavar="ID[:OUTPUT]")
+        self.argparser.add_argument("--os")
+        self.argparser.add_argument("--anonftp", action="store_true")
+        self.argparser.add_argument("--anonldap", action="store_true")
+        self.argparser.add_argument("--authhttp", action="store_true")
+        self.argparser.add_argument("--authbypassvnc", action="store_true")
+        self.argparser.add_argument("--ypserv", "--nis", action="store_true")
+        self.argparser.add_argument("--nfs", action="store_true")
+        self.argparser.add_argument("--x11", action="store_true")
+        self.argparser.add_argument("--xp445", action="store_true")
+        self.argparser.add_argument("--httphdr")
+        self.argparser.add_argument("--owa", action="store_true")
+        self.argparser.add_argument(
+            "--vuln-boa", "--vuln-intersil", action="store_true"
+        )
+        self.argparser.add_argument("--torcert", action="store_true")
+        self.argparser.add_argument("--sshkey", metavar="FINGERPRINT")
 
     @staticmethod
     def is_scan_present(_):
@@ -678,11 +727,11 @@ insert structures.
     @staticmethod
     def getscreenshot(port):
         """Returns the content of a port's screenshot."""
-        url = port.get('screenshot')
+        url = port.get("screenshot")
         if url is None:
             return None
         if url == "field":
-            return port.get('screendata')
+            return port.get("screendata")
 
     def migrate_schema(self, version):
         """Implemented in backend-specific classes.
@@ -704,16 +753,17 @@ insert structures.
         openports = {"count": 0}
         for port in doc.get("ports", []):
             # populate openports
-            if port.get('state_state') == 'open':
+            if port.get("state_state") == "open":
                 openports.setdefault(port["protocol"], {}).setdefault(
-                    "ports", []).append(port["port"])
+                    "ports", []
+                ).append(port["port"])
             # create the screenwords attribute
-            if 'screenshot' in port and 'screenwords' not in port:
+            if "screenshot" in port and "screenwords" not in port:
                 screenwords = utils.screenwords(cls.getscreenshot(port))
                 if screenwords is not None:
-                    port['screenwords'] = screenwords
+                    port["screenwords"] = screenwords
         for proto in list(openports):
-            if proto == 'count':
+            if proto == "count":
                 continue
             count = len(openports[proto]["ports"])
             openports[proto]["count"] = count
@@ -732,7 +782,7 @@ insert structures.
         for port in doc.get("ports", []):
             if port.get("service_method") == "table":
                 for key in list(port):
-                    if key.startswith('service_'):
+                    if key.startswith("service_"):
                         del port[key]
 
     @staticmethod
@@ -744,24 +794,25 @@ insert structures.
         """
         assert doc["schema_version"] == 2
         doc["schema_version"] = 3
-        migrate_scripts = set([
-            "afp-ls", "nfs-ls", "smb-ls", "ftp-anon", "http-ls"
-        ])
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if script['id'] in migrate_scripts:
-                    if script['id'] in script:
+        migrate_scripts = set(
+            ["afp-ls", "nfs-ls", "smb-ls", "ftp-anon", "http-ls"]
+        )
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if script["id"] in migrate_scripts:
+                    if script["id"] in script:
                         script["ls"] = xmlnmap.change_ls(
-                            script.pop(script['id']))
+                            script.pop(script["id"])
+                        )
                     elif "ls" not in script:
                         data = xmlnmap.add_ls_data(script)
                         if data is not None:
-                            script['ls'] = data
-        for script in doc.get('scripts', []):
-            if script['id'] in migrate_scripts:
+                            script["ls"] = data
+        for script in doc.get("scripts", []):
+            if script["id"] in migrate_scripts:
                 data = xmlnmap.add_ls_data(script)
                 if data is not None:
-                    script['ls'] = data
+                    script["ls"] = data
 
     @staticmethod
     def __migrate_schema_hosts_3_4(doc):
@@ -771,11 +822,10 @@ insert structures.
         """
         assert doc["schema_version"] == 3
         doc["schema_version"] = 4
-        if 'scripts' in doc:
-            doc.setdefault('ports', []).append({
-                "port": "host",
-                "scripts": doc.pop('scripts'),
-            })
+        if "scripts" in doc:
+            doc.setdefault("ports", []).append(
+                {"port": "host", "scripts": doc.pop("scripts")}
+            )
 
     @staticmethod
     def __migrate_schema_hosts_4_5(doc):
@@ -789,12 +839,13 @@ insert structures.
         """
         assert doc["schema_version"] == 4
         doc["schema_version"] = 5
-        for port in doc.get('ports', []):
-            if port['port'] == 'host':
-                port['port'] = -1
-        for state, (total, counts) in list(viewitems(doc.get('extraports',
-                                                             {}))):
-            doc['extraports'][state] = {"total": total, "reasons": counts}
+        for port in doc.get("ports", []):
+            if port["port"] == "host":
+                port["port"] = -1
+        for state, (total, counts) in list(
+            viewitems(doc.get("extraports", {}))
+        ):
+            doc["extraports"][state] = {"total": total, "reasons": counts}
 
     @staticmethod
     def __migrate_schema_hosts_5_6(doc):
@@ -804,15 +855,17 @@ insert structures.
         """
         assert doc["schema_version"] == 5
         doc["schema_version"] = 6
-        migrate_scripts = set(script for script, alias
-                              in viewitems(xmlnmap.ALIASES_TABLE_ELEMS)
-                              if alias == 'vulns')
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if script['id'] in migrate_scripts:
+        migrate_scripts = set(
+            script
+            for script, alias in viewitems(xmlnmap.ALIASES_TABLE_ELEMS)
+            if alias == "vulns"
+        )
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if script["id"] in migrate_scripts:
                     table = None
-                    if script['id'] in script:
-                        table = script.pop(script['id'])
+                    if script["id"] in script:
+                        table = script.pop(script["id"])
                         script["vulns"] = table
                     elif "vulns" in script:
                         table = script["vulns"]
@@ -830,13 +883,13 @@ insert structures.
         """
         assert doc["schema_version"] == 6
         doc["schema_version"] = 7
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if script['id'] == "mongodb-databases":
-                    if 'mongodb-databases' not in script:
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if script["id"] == "mongodb-databases":
+                    if "mongodb-databases" not in script:
                         data = xmlnmap.add_mongodb_databases_data(script)
                         if data is not None:
-                            script['mongodb-databases'] = data
+                            script["mongodb-databases"] = data
 
     @staticmethod
     def __migrate_schema_hosts_7_8(doc):
@@ -846,16 +899,25 @@ insert structures.
         """
         assert doc["schema_version"] == 7
         doc["schema_version"] = 8
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if 'vulns' in script:
-                    if any(elt in script['vulns'] for elt in
-                           ["ids", "refs", "description", "state", "title"]):
-                        script['vulns'] = [script['vulns']]
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if "vulns" in script:
+                    if any(
+                        elt in script["vulns"]
+                        for elt in [
+                            "ids",
+                            "refs",
+                            "description",
+                            "state",
+                            "title",
+                        ]
+                    ):
+                        script["vulns"] = [script["vulns"]]
                     else:
-                        script['vulns'] = [dict(tab, id=vulnid)
-                                           for vulnid, tab in
-                                           viewitems(script['vulns'])]
+                        script["vulns"] = [
+                            dict(tab, id=vulnid)
+                            for vulnid, tab in viewitems(script["vulns"])
+                        ]
 
     @staticmethod
     def __migrate_schema_hosts_8_9(doc):
@@ -865,13 +927,13 @@ insert structures.
         """
         assert doc["schema_version"] == 8
         doc["schema_version"] = 9
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if script['id'] == "http-headers":
-                    if 'http-headers' not in script:
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if script["id"] == "http-headers":
+                    if "http-headers" not in script:
                         data = xmlnmap.add_http_headers_data(script)
                         if data is not None:
-                            script['http-headers'] = data
+                            script["http-headers"] = data
 
     @staticmethod
     def __migrate_schema_hosts_9_10(doc):
@@ -881,11 +943,11 @@ the field names of the structured output for s7-info script.
         """
         assert doc["schema_version"] == 9
         doc["schema_version"] = 10
-        for port in doc.get('ports', []):
-            for script in port.get('scripts', []):
-                if script['id'] == "s7-info":
-                    if 's7-info' in script:
-                        xmlnmap.change_s7_info_keys(script['s7-info'])
+        for port in doc.get("ports", []):
+            for script in port.get("scripts", []):
+                if script["id"] == "s7-info":
+                    if "s7-info" in script:
+                        xmlnmap.change_s7_info_keys(script["s7-info"])
 
     @staticmethod
     def __migrate_schema_hosts_10_11(doc):
@@ -901,53 +963,55 @@ they are stored as canonical string representations.
         assert doc["schema_version"] == 10
         doc["schema_version"] = 11
         try:
-            doc['addr'] = utils.force_int2ip(doc['addr'])
+            doc["addr"] = utils.force_int2ip(doc["addr"])
         except KeyError:
             pass
         if "infos" in doc and "loc" in doc["infos"]:
-            doc["infos"]["coordinates"] = doc["infos"].pop(
-                "loc"
-            )["coordinates"][::-1]
-        for port in doc.get('ports', []):
-            if 'state_reason_ip' in port:
+            doc["infos"]["coordinates"] = doc["infos"].pop("loc")[
+                "coordinates"
+            ][::-1]
+        for port in doc.get("ports", []):
+            if "state_reason_ip" in port:
                 try:
-                    port['state_reason_ip'] = utils.force_int2ip(
-                        port['state_reason_ip']
+                    port["state_reason_ip"] = utils.force_int2ip(
+                        port["state_reason_ip"]
                     )
                 except ValueError:
                     pass
-            for script in port.get('scripts', []):
-                if script['id'] == 'ssl-cert':
-                    if 'pem' in script['ssl-cert']:
-                        data = ''.join(
-                            script['ssl-cert']['pem'].splitlines()[1:-1]
+            for script in port.get("scripts", []):
+                if script["id"] == "ssl-cert":
+                    if "pem" in script["ssl-cert"]:
+                        data = "".join(
+                            script["ssl-cert"]["pem"].splitlines()[1:-1]
                         ).encode()
                         try:
                             newout, newinfo = xmlnmap.create_ssl_cert(data)
                         except Exception:
-                            utils.LOGGER.warning('Cannot parse certificate %r',
-                                                 data,
-                                                 exc_info=True)
+                            utils.LOGGER.warning(
+                                "Cannot parse certificate %r",
+                                data,
+                                exc_info=True,
+                            )
                         else:
-                            script['output'] = '\n'.join(newout)
-                            script['ssl-cert'] = newinfo
+                            script["output"] = "\n".join(newout)
+                            script["ssl-cert"] = newinfo
                             continue
                     try:
                         pubkeytype = {
-                            'rsaEncryption': 'rsa',
-                            'id-ecPublicKey': 'ec',
-                            'id-dsa': 'dsa',
-                            'dhpublicnumber': 'dh',
-                        }[script['ssl-cert'].pop('pubkeyalgo')]
+                            "rsaEncryption": "rsa",
+                            "id-ecPublicKey": "ec",
+                            "id-dsa": "dsa",
+                            "dhpublicnumber": "dh",
+                        }[script["ssl-cert"].pop("pubkeyalgo")]
                     except KeyError:
                         pass
                     else:
-                        script['pubkey'] = {'type': pubkeytype}
-        for trace in doc.get('traces', []):
-            for hop in trace.get('hops', []):
-                if 'ipaddr' in hop:
+                        script["pubkey"] = {"type": pubkeytype}
+        for trace in doc.get("traces", []):
+            for hop in trace.get("hops", []):
+                if "ipaddr" in hop:
                     try:
-                        hop['ipaddr'] = utils.force_int2ip(hop['ipaddr'])
+                        hop["ipaddr"] = utils.force_int2ip(hop["ipaddr"])
                     except ValueError:
                         pass
         return doc
@@ -978,13 +1042,16 @@ they are stored as canonical string representations.
                     lambda x, y: x * y,
                     reduce(
                         lambda x, y: (x[0] + y[0], x[1] + y[1]),
-                        ((1, port['port'])
-                         for port in host.get('ports', [])
-                         if port['state_state'] == 'open'),
-                        (0, 0)
-                    )
-                )
-            } for host in self.get(flt, fields=["ports"])
+                        (
+                            (1, port["port"])
+                            for port in host.get("ports", [])
+                            if port["state_state"] == "open"
+                        ),
+                        (0, 0),
+                    ),
+                ),
+            }
+            for host in self.get(flt, fields=["ports"])
         ]
         # result = []
         # for host in self.get(flt, fields=["ports"]):
@@ -997,107 +1064,112 @@ they are stored as canonical string representations.
         #     result.append((self.getid(host), count * ports))
         # return result
 
-    def searchsshkey(self, fingerprint=None, key=None,
-                     keytype=None, bits=None, output=None):
+    def searchsshkey(
+        self, fingerprint=None, key=None, keytype=None, bits=None, output=None
+    ):
         """Search SSH host keys """
-        params = {"name": 'ssh-hostkey'}
+        params = {"name": "ssh-hostkey"}
         if fingerprint is not None:
             if not isinstance(fingerprint, utils.REGEXP_T):
                 fingerprint = fingerprint.replace(":", "").lower()
-            params.setdefault("values", {})['fingerprint'] = fingerprint
+            params.setdefault("values", {})["fingerprint"] = fingerprint
         if key is not None:
-            params.setdefault("values", {})['key'] = key
+            params.setdefault("values", {})["key"] = key
         if keytype is not None:
-            params.setdefault("values", {})['type'] = 'ssh-%s' % keytype
+            params.setdefault("values", {})["type"] = "ssh-%s" % keytype
         if bits is not None:
-            params.setdefault("values", {})['bits'] = bits
+            params.setdefault("values", {})["bits"] = bits
         if output is not None:
-            params['output'] = output
+            params["output"] = output
         return self.searchscript(**params)
 
     def searchx11access(self):
-        return self.searchscript(name='x11-access',
-                                 output='X server access is granted')
+        return self.searchscript(
+            name="x11-access", output="X server access is granted"
+        )
 
     def searchbanner(self, banner):
-        return self.searchscript(name='banner', output=banner)
+        return self.searchscript(name="banner", output=banner)
 
     def searchvncauthbypass(self):
         return self.searchscript(name="realvnc-auth-bypass")
 
     def searchmssqlemptypwd(self):
         return self.searchscript(
-            name='ms-sql-empty-password',
-            output=re.compile('Login\\ Success', flags=0),
+            name="ms-sql-empty-password",
+            output=re.compile("Login\\ Success", flags=0),
         )
 
     def searchmysqlemptypwd(self):
         return self.searchscript(
-            name='mysql-empty-password',
-            output=re.compile('account\\ has\\ empty\\ password', flags=0),
+            name="mysql-empty-password",
+            output=re.compile("account\\ has\\ empty\\ password", flags=0),
         )
 
     def searchcookie(self, name):
         return self.searchscript(
-            name='http-headers',
-            output=re.compile('^ *Set-Cookie: %s=' % re.escape(name),
-                              flags=re.MULTILINE | re.I),
+            name="http-headers",
+            output=re.compile(
+                "^ *Set-Cookie: %s=" % re.escape(name),
+                flags=re.MULTILINE | re.I,
+            ),
         )
 
     def searchftpanon(self):
         return self.searchscript(
-            name='ftp-anon',
-            output=re.compile('^Anonymous\\ FTP\\ login\\ allowed', flags=0),
+            name="ftp-anon",
+            output=re.compile("^Anonymous\\ FTP\\ login\\ allowed", flags=0),
         )
 
     def searchhttpauth(self, newscript=True, oldscript=False):
         if newscript:
             if oldscript:
                 return self.searchscript(
-                    name=re.compile('^http-(default-accounts|auth)$'),
-                    output=re.compile('credentials\\ found|'
-                                      'HTTP\\ server\\ may\\ accept'),
+                    name=re.compile("^http-(default-accounts|auth)$"),
+                    output=re.compile(
+                        "credentials\\ found|" "HTTP\\ server\\ may\\ accept"
+                    ),
                 )
             return self.searchscript(
-                name='http-default-accounts',
-                output=re.compile('credentials\\ found'),
+                name="http-default-accounts",
+                output=re.compile("credentials\\ found"),
             )
         if oldscript:
             return self.searchscript(
-                name='http-auth',
-                output=re.compile('HTTP\\ server\\ may\\ accept'),
+                name="http-auth",
+                output=re.compile("HTTP\\ server\\ may\\ accept"),
             )
         raise Exception('"newscript" and "oldscript" are both False')
 
     def searchowa(self):
         return self.searchscript(
-            name=re.compile('^(http-(headers|auth-finder|title)|html-title)$'),
-            output=re.compile('[ /](owa|exchweb)|X-OWA-Version|Outlook Web A',
-                              re.I)
+            name=re.compile("^(http-(headers|auth-finder|title)|html-title)$"),
+            output=re.compile(
+                "[ /](owa|exchweb)|X-OWA-Version|Outlook Web A", re.I
+            ),
         )
 
     def searchxp445(self):
         return self.flt_and(
-            self.searchport(445),
-            self.searchsmb(os="Windows 5.1"),
+            self.searchport(445), self.searchsmb(os="Windows 5.1")
         )
 
     def searchypserv(self):
-        return self.searchscript(name='rpcinfo',
-                                 output=re.compile('ypserv', flags=0))
+        return self.searchscript(
+            name="rpcinfo", output=re.compile("ypserv", flags=0)
+        )
 
     def searchnfs(self):
-        return self.searchscript(name='rpcinfo',
-                                 output=re.compile('nfs', flags=0))
+        return self.searchscript(
+            name="rpcinfo", output=re.compile("nfs", flags=0)
+        )
 
     def searchtorcert(self):
         expr = re.compile(
-            '^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$',
-            flags=0
+            "^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$", flags=0
         )
         return self.searchscript(
-            name='ssl-cert',
-            values={'subject_text': expr, 'issuer_text': expr},
+            name="ssl-cert", values={"subject_text": expr, "issuer_text": expr}
         )
 
     @classmethod
@@ -1107,16 +1179,18 @@ they are stored as canonical string representations.
         if value is None:
             return cls.searchscript(name="http-headers", values={"name": name})
         if name is None:
-            return cls.searchscript(name="http-headers",
-                                    values={"value": value})
-        return cls.searchscript(name="http-headers",
-                                values={"name": name, "value": value})
+            return cls.searchscript(
+                name="http-headers", values={"value": value}
+            )
+        return cls.searchscript(
+            name="http-headers", values={"name": name, "value": value}
+        )
 
     def searchgeovision(self):
-        return self.searchproduct(re.compile('^GeoVision', re.I))
+        return self.searchproduct(re.compile("^GeoVision", re.I))
 
     def searchwebcam(self):
-        return self.searchdevicetype('webcam')
+        return self.searchdevicetype("webcam")
 
     @staticmethod
     def searchhost(addr, neg=False):
@@ -1131,12 +1205,13 @@ they are stored as canonical string representations.
         raise NotImplementedError
 
     @staticmethod
-    def searchport(port, protocol='tcp', state='open', neg=False):
+    def searchport(port, protocol="tcp", state="open", neg=False):
         raise NotImplementedError
 
     @staticmethod
-    def searchproduct(product, version=None, service=None, port=None,
-                      protocol=None):
+    def searchproduct(
+        product, version=None, service=None, port=None, protocol=None
+    ):
         raise NotImplementedError
 
     @staticmethod
@@ -1152,30 +1227,30 @@ they are stored as canonical string representations.
 
         """
         # key aliases
-        if 'dnsdomain' in args:
-            args['domain_dns'] = args.pop('dnsdomain')
-        if 'forest' in args:
-            args['forest_dns'] = args.pop('forest')
-        return cls.searchscript(name='smb-os-discovery', values=args)
+        if "dnsdomain" in args:
+            args["domain_dns"] = args.pop("dnsdomain")
+        if "forest" in args:
+            args["forest_dns"] = args.pop("forest")
+        return cls.searchscript(name="smb-os-discovery", values=args)
 
     @classmethod
     def searchuseragent(cls, useragent=None, neg=False):
         if useragent is None:
             return cls.searchscript(name="http-user-agent", neg=neg)
         return cls.searchscript(
-            name="http-user-agent",
-            values=useragent,
-            neg=neg
+            name="http-user-agent", values=useragent, neg=neg
         )
 
     def parse_args(self, args, flt=None):
         flt = super(DBActive, self).parse_args(args, flt=flt)
         if args.category is not None:
-            flt = self.flt_and(flt, self.searchcategory(
-                utils.str2list(args.category)))
+            flt = self.flt_and(
+                flt, self.searchcategory(utils.str2list(args.category))
+            )
         if args.asname is not None:
-            flt = self.flt_and(flt, self.searchasname(
-                utils.str2regexp(args.asname)))
+            flt = self.flt_and(
+                flt, self.searchasname(utils.str2regexp(args.asname))
+            )
         if args.source is not None:
             flt = self.flt_and(flt, self.searchsource(args.source))
         if args.version is not None:
@@ -1189,28 +1264,28 @@ they are stored as canonical string representations.
         if args.host is not None:
             flt = self.flt_and(flt, self.searchhost(args.host))
         if args.hostname is not None:
-            if args.hostname[:1] in '!~':
+            if args.hostname[:1] in "!~":
                 flt = self.flt_and(
                     flt,
-                    self.searchhostname(utils.str2regexp(args.hostname[1:]),
-                                        neg=True)
+                    self.searchhostname(
+                        utils.str2regexp(args.hostname[1:]), neg=True
+                    ),
                 )
             else:
                 flt = self.flt_and(
-                    flt,
-                    self.searchhostname(utils.str2regexp(args.hostname))
+                    flt, self.searchhostname(utils.str2regexp(args.hostname))
                 )
         if args.domain is not None:
-            if args.domain[:1] in '!~':
+            if args.domain[:1] in "!~":
                 flt = self.flt_and(
                     flt,
-                    self.searchdomain(utils.str2regexp(args.domain[1:]),
-                                      neg=True)
+                    self.searchdomain(
+                        utils.str2regexp(args.domain[1:]), neg=True
+                    ),
                 )
             else:
                 flt = self.flt_and(
-                    flt,
-                    self.searchdomain(utils.str2regexp(args.domain))
+                    flt, self.searchdomain(utils.str2regexp(args.domain))
                 )
         if args.net is not None:
             flt = self.flt_and(flt, self.searchnet(args.net))
@@ -1219,53 +1294,54 @@ they are stored as canonical string representations.
         if args.hop is not None:
             flt = self.flt_and(flt, self.searchhop(args.hop))
         if args.not_port is not None:
-            not_port = args.not_port.replace('_', '/')
-            if '/' in not_port:
-                not_proto, not_port = not_port.split('/', 1)
+            not_port = args.not_port.replace("_", "/")
+            if "/" in not_port:
+                not_proto, not_port = not_port.split("/", 1)
             else:
-                not_proto = 'tcp'
+                not_proto = "tcp"
             not_port = int(not_port)
             flt = self.flt_and(
                 flt,
-                self.searchport(port=not_port, protocol=not_proto,
-                                neg=True))
+                self.searchport(port=not_port, protocol=not_proto, neg=True),
+            )
         if args.openport:
             flt = self.flt_and(flt, self.searchopenport())
         if args.no_openport:
             flt = self.flt_and(flt, self.searchopenport(neg=True))
         if args.countports:
             minn, maxn = int(args.countports[0]), int(args.countports[1])
-            flt = self.flt_and(flt,
-                               self.searchcountopenports(minn=minn,
-                                                         maxn=maxn))
+            flt = self.flt_and(
+                flt, self.searchcountopenports(minn=minn, maxn=maxn)
+            )
         if args.no_countports:
             minn, maxn = int(args.no_countports[0]), int(args.no_countports[1])
-            flt = self.flt_and(flt,
-                               self.searchcountopenports(minn=minn,
-                                                         maxn=maxn,
-                                                         neg=True))
+            flt = self.flt_and(
+                flt, self.searchcountopenports(minn=minn, maxn=maxn, neg=True)
+            )
         if args.script is not None:
-            if ':' in args.script:
-                name, output = (utils.str2regexp(string) for
-                                string in args.script.split(':', 1))
+            if ":" in args.script:
+                name, output = (
+                    utils.str2regexp(string)
+                    for string in args.script.split(":", 1)
+                )
             else:
                 name, output = utils.str2regexp(args.script), None
-            flt = self.flt_and(flt, self.searchscript(name=name,
-                                                      output=output))
+            flt = self.flt_and(
+                flt, self.searchscript(name=name, output=output)
+            )
         if args.no_script is not None:
-            if ':' in args.no_script:
-                name, output = (utils.str2regexp(string) for
-                                string in args.no_script.split(':', 1))
+            if ":" in args.no_script:
+                name, output = (
+                    utils.str2regexp(string)
+                    for string in args.no_script.split(":", 1)
+                )
             else:
                 name, output = utils.str2regexp(args.no_script), None
-            flt = self.flt_and(flt, self.searchscript(name=name,
-                                                      output=output,
-                                                      neg=True))
-        if args.os is not None:
             flt = self.flt_and(
-                flt,
-                self.searchos(utils.str2regexp(args.os))
+                flt, self.searchscript(name=name, output=output, neg=True)
             )
+        if args.os is not None:
+            flt = self.flt_and(flt, self.searchos(utils.str2regexp(args.os)))
         if args.anonftp:
             flt = self.flt_and(flt, self.searchftpanon())
         if args.anonldap:
@@ -1286,15 +1362,19 @@ they are stored as canonical string representations.
             if not args.httphdr:
                 flt = self.flt_and(flt, self.searchhttphdr())
             elif ":" in args.httphdr:
-                name, value = args.httphdr.split(':', 1)
+                name, value = args.httphdr.split(":", 1)
                 name = utils.str2regexp(name.lower())
                 value = utils.str2regexp(value)
-                flt = self.flt_and(flt, self.searchhttphdr(name=name,
-                                                           value=value))
+                flt = self.flt_and(
+                    flt, self.searchhttphdr(name=name, value=value)
+                )
             else:
-                flt = self.flt_and(flt, self.searchhttphdr(
-                    name=utils.str2regexp(args.httphdr.lower())
-                ))
+                flt = self.flt_and(
+                    flt,
+                    self.searchhttphdr(
+                        name=utils.str2regexp(args.httphdr.lower())
+                    ),
+                )
         if args.owa:
             flt = self.flt_and(flt, self.searchowa())
         if args.vuln_boa:
@@ -1302,8 +1382,10 @@ they are stored as canonical string representations.
         if args.torcert:
             flt = self.flt_and(flt, self.searchtorcert())
         if args.sshkey is not None:
-            flt = self.flt_and(flt, self.searchsshkey(
-                fingerprint=utils.str2regexp(args.sshkey)))
+            flt = self.flt_and(
+                flt,
+                self.searchsshkey(fingerprint=utils.str2regexp(args.sshkey)),
+            )
         return flt
 
     @staticmethod
@@ -1316,13 +1398,12 @@ they are stored as canonical string representations.
 
 
 class DBNmap(DBActive):
-
     def __init__(self, output_mode="json", output=sys.stdout):
         super(DBNmap, self).__init__()
         self.content_handler = xmlnmap.Nmap2Txt
-        self.output_function = {
-            "normal": nmapout.displayhosts,
-        }.get(output_mode, nmapout.displayhosts_json)
+        self.output_function = {"normal": nmapout.displayhosts}.get(
+            output_mode, nmapout.displayhosts_json
+        )
         self.output = output
 
     def store_host(self, host):
@@ -1342,8 +1423,8 @@ class DBNmap(DBActive):
             fchar = fdesc.read(1)
         try:
             store_scan_function = {
-                b'<': self.store_scan_xml,
-                b'{': self.store_scan_json,
+                b"<": self.store_scan_xml,
+                b"{": self.store_scan_json,
             }[fchar]
         except KeyError:
             raise ValueError("Unknown file type %s" % fname)
@@ -1368,7 +1449,7 @@ class DBNmap(DBActive):
         try:
             content_handler = self.content_handler(fname, **kargs)
         except Exception:
-            utils.LOGGER.warning('Exception (file %r)', fname, exc_info=True)
+            utils.LOGGER.warning("Exception (file %r)", fname, exc_info=True)
         else:
             content_handler.callback = callback
             parser.setContentHandler(content_handler)
@@ -1381,11 +1462,19 @@ class DBNmap(DBActive):
         self.stop_store_hosts()
         return False
 
-    def store_scan_json(self, fname, filehash=None,
-                        needports=False, needopenports=False,
-                        categories=None, source=None,
-                        add_addr_infos=True, force_info=False,
-                        callback=None, **_):
+    def store_scan_json(
+        self,
+        fname,
+        filehash=None,
+        needports=False,
+        needopenports=False,
+        categories=None,
+        source=None,
+        add_addr_infos=True,
+        force_info=False,
+        callback=None,
+        **_
+    ):
         """This method parses a JSON scan result as exported using
         `ivre scancli --json > file`, displays the parsing result, and
         return True if everything went fine, False otherwise.
@@ -1414,34 +1503,43 @@ class DBNmap(DBActive):
                     host["categories"] = categories
                 if source is not None:
                     host["source"] = source
-                if add_addr_infos and self.globaldb is not None and (
-                        force_info or 'infos' not in host or not host['infos']
+                if (
+                    add_addr_infos
+                    and self.globaldb is not None
+                    and (
+                        force_info or "infos" not in host or not host["infos"]
+                    )
                 ):
-                    host['infos'] = {}
-                    for func in [self.globaldb.data.country_byip,
-                                 self.globaldb.data.as_byip,
-                                 self.globaldb.data.location_byip]:
-                        host['infos'].update(func(host['addr']) or {})
-                if ((not needports or 'ports' in host) and
-                    (not needopenports or
-                     host.get('openports', {}).get('count'))):
+                    host["infos"] = {}
+                    for func in [
+                        self.globaldb.data.country_byip,
+                        self.globaldb.data.as_byip,
+                        self.globaldb.data.location_byip,
+                    ]:
+                        host["infos"].update(func(host["addr"]) or {})
+                if (not needports or "ports" in host) and (
+                    not needopenports or host.get("openports", {}).get("count")
+                ):
                     # Update schema if/as needed.
-                    while host.get(
-                            "schema_version"
-                    ) in self._schema_migrations["hosts"]:
+                    while (
+                        host.get("schema_version")
+                        in self._schema_migrations["hosts"]
+                    ):
                         oldvers = host.get("schema_version")
                         self._schema_migrations["hosts"][oldvers][1](host)
                         if oldvers == host.get("schema_version"):
                             utils.LOGGER.warning(
                                 "[%r] could not migrate host from version "
                                 "%r [%r]",
-                                self.__class__, oldvers, host
+                                self.__class__,
+                                oldvers,
+                                host,
                             )
                             break
                     # We are about to insert data based on this file,
                     # so we want to save the scan document
                     if not scan_doc_saved:
-                        self.store_scan_doc({'_id': filehash})
+                        self.store_scan_doc({"_id": filehash})
                         scan_doc_saved = True
                     self.store_host(host)
                 if callback is not None:
@@ -1451,83 +1549,97 @@ class DBNmap(DBActive):
 
 
 class DBView(DBActive):
-
     def __init__(self):
         super(DBView, self).__init__()
-        self.argparser.add_argument('--ssl-ja3-server',
-                                    metavar='JA3-SERVER[:JA3-CLIENT]',
-                                    nargs='?',
-                                    const=False,
-                                    default=None)
-        self.argparser.add_argument('--ssl-ja3-client',
-                                    metavar='JA3-CLIENT',
-                                    nargs='?',
-                                    const=False,
-                                    default=None)
+        self.argparser.add_argument(
+            "--ssl-ja3-server",
+            metavar="JA3-SERVER[:JA3-CLIENT]",
+            nargs="?",
+            const=False,
+            default=None,
+        )
+        self.argparser.add_argument(
+            "--ssl-ja3-client",
+            metavar="JA3-CLIENT",
+            nargs="?",
+            const=False,
+            default=None,
+        )
 
     def parse_args(self, args, flt=None):
         flt = super(DBView, self).parse_args(args, flt=flt)
         if args.ssl_ja3_client is not None:
             cli = args.ssl_ja3_client
-            flt = self.flt_and(flt, self.searchja3client(
-                value_or_hash=(
-                    False if cli is False else utils.str2regexp(cli)
-                )
-            ))
+            flt = self.flt_and(
+                flt,
+                self.searchja3client(
+                    value_or_hash=(
+                        False if cli is False else utils.str2regexp(cli)
+                    )
+                ),
+            )
         if args.ssl_ja3_server is not None:
             if args.ssl_ja3_server is False:
                 # There are no additional arguments
                 flt = self.flt_and(flt, self.searchja3server())
             else:
-                split = [utils.str2regexp(v) if v else None
-                         for v in args.ssl_ja3_server.split(':', 1)]
+                split = [
+                    utils.str2regexp(v) if v else None
+                    for v in args.ssl_ja3_server.split(":", 1)
+                ]
                 if len(split) == 1:
                     # Only a JA3 server is given
-                    flt = self.flt_and(flt, self.searchja3server(
-                        value_or_hash=split[0]
-                    ))
+                    flt = self.flt_and(
+                        flt, self.searchja3server(value_or_hash=split[0])
+                    )
                 else:
                     # Both client and server JA3 are given
-                    flt = self.flt_and(flt, self.searchja3server(
-                        value_or_hash=split[0],
-                        client_value_or_hash=split[1],
-                    ))
+                    flt = self.flt_and(
+                        flt,
+                        self.searchja3server(
+                            value_or_hash=split[0],
+                            client_value_or_hash=split[1],
+                        ),
+                    )
         return flt
 
     @staticmethod
     def merge_ja3_scripts(curscript, script, script_id):
-
         def is_server(script_id):
-            return script_id == 'ssl-ja3-server'
+            return script_id == "ssl-ja3-server"
 
         def ja3_equals(a, b, script_id):
-            return (a['raw'] == b['raw'] and
-                    (not is_server(script_id) or
-                     a['client']['raw'] == b['client']['raw']))
+            return a["raw"] == b["raw"] and (
+                not is_server(script_id)
+                or a["client"]["raw"] == b["client"]["raw"]
+            )
 
         def ja3_output(ja3, script_id):
-            output = ja3['md5']
+            output = ja3["md5"]
             if is_server(script_id):
-                output += ' - ' + ja3['client']['md5']
+                output += " - " + ja3["client"]["md5"]
             return output
-        return DBView._merge_scripts(curscript, script, script_id,
-                                     ja3_equals, ja3_output)
+
+        return DBView._merge_scripts(
+            curscript, script, script_id, ja3_equals, ja3_output
+        )
 
     @staticmethod
     def merge_ua_scripts(curscript, script, script_id):
-
         def ua_equals(a, b, script_id):
             return a == b
 
         def ua_output(ua, script_id):
             return ua
 
-        return DBView._merge_scripts(curscript, script, script_id,
-                                     ua_equals, ua_output)
+        return DBView._merge_scripts(
+            curscript, script, script_id, ua_equals, ua_output
+        )
 
     @staticmethod
-    def _merge_scripts(curscript, script, script_id,
-                       script_equals, script_output):
+    def _merge_scripts(
+        curscript, script, script_id, script_equals, script_output
+    ):
         """Merge two scripts and return the result. Avoid duplicates.
         """
         to_merge_list = []
@@ -1543,15 +1655,15 @@ class DBView(DBActive):
         # Compute output from curscript[script_id]
         output = ""
         for el in curscript[script_id]:
-            output += script_output(el, script_id) + '\n'
-        curscript['output'] = output
+            output += script_output(el, script_id) + "\n"
+        curscript["output"] = output
         return curscript
 
     @staticmethod
     def merge_scripts(curscript, script, script_id):
-        if script_id.startswith('ssl-ja3-'):
+        if script_id.startswith("ssl-ja3-"):
             return DBView.merge_ja3_scripts(curscript, script, script_id)
-        elif script_id == 'http-user-agent':
+        elif script_id == "http-user-agent":
             return DBView.merge_ua_scripts(curscript, script, script_id)
         return {}
 
@@ -1562,10 +1674,11 @@ class DBView(DBActive):
 
         """
         if rec1.get("schema_version") != rec2.get("schema_version"):
-            raise ValueError("Cannot merge host documents. "
-                             "Schema versions differ (%r != %r)" % (
-                                 rec1.get("schema_version"),
-                                 rec2.get("schema_version")))
+            raise ValueError(
+                "Cannot merge host documents. "
+                "Schema versions differ (%r != %r)"
+                % (rec1.get("schema_version"), rec2.get("schema_version"))
+            )
         rec = {}
         if "schema_version" in rec1:
             rec["schema_version"] = rec1["schema_version"]
@@ -1575,97 +1688,110 @@ class DBView(DBActive):
             rec1, rec2 = rec2, rec1
         for fname, function in [("starttime", min), ("endtime", max)]:
             try:
-                rec[fname] = function(record[fname] for record in [rec1, rec2]
-                                      if fname in record)
+                rec[fname] = function(
+                    record[fname] for record in [rec1, rec2] if fname in record
+                )
             except ValueError:
                 pass
         rec["state"] = "up" if rec1.get("state") == "up" else rec2.get("state")
         if rec["state"] is None:
             del rec["state"]
         rec["categories"] = list(
-            set(rec1.get("categories", [])).union(
-                rec2.get("categories", []))
+            set(rec1.get("categories", [])).union(rec2.get("categories", []))
         )
         for field in ["addr", "os"]:
             rec[field] = rec2[field] if rec2.get(field) else rec1.get(field)
             if not rec[field]:
                 del rec[field]
-        rec['source'] = list(set(rec1.get('source', []))
-                             .union(set(rec2.get('source', []))))
+        rec["source"] = list(
+            set(rec1.get("source", [])).union(set(rec2.get("source", [])))
+        )
         rec["traces"] = rec1.get("traces", []) + rec2.get("traces", [])
         rec["infos"] = {}
         for record in [rec1, rec2]:
             rec["infos"].update(record.get("infos", {}))
         # We want to make sure of (type, name) unicity
-        hostnames = dict(((h['type'], h['name']), h.get('domains'))
-                         for h in (rec1.get("hostnames", []) +
-                                   rec2.get("hostnames", [])))
-        rec["hostnames"] = [{"type": h[0], "name": h[1], "domains": d}
-                            for h, d in viewitems(hostnames)]
-        ports = dict(((port.get("protocol"), port["port"]), port.copy())
-                     for port in rec2.get("ports", []))
+        hostnames = dict(
+            ((h["type"], h["name"]), h.get("domains"))
+            for h in (rec1.get("hostnames", []) + rec2.get("hostnames", []))
+        )
+        rec["hostnames"] = [
+            {"type": h[0], "name": h[1], "domains": d}
+            for h, d in viewitems(hostnames)
+        ]
+        ports = dict(
+            ((port.get("protocol"), port["port"]), port.copy())
+            for port in rec2.get("ports", [])
+        )
         for port in rec1.get("ports", []):
-            if (port.get('protocol'), port['port']) in ports:
-                curport = ports[(port.get('protocol'), port['port'])]
-                if 'scripts' in curport:
-                    curport['scripts'] = curport['scripts'][:]
+            if (port.get("protocol"), port["port"]) in ports:
+                curport = ports[(port.get("protocol"), port["port"])]
+                if "scripts" in curport:
+                    curport["scripts"] = curport["scripts"][:]
                 else:
-                    curport['scripts'] = []
+                    curport["scripts"] = []
                 present_scripts = set(
-                    script['id'] for script in curport['scripts']
+                    script["id"] for script in curport["scripts"]
                 )
                 for script in port.get("scripts", []):
-                    if script['id'] not in present_scripts:
-                        curport['scripts'].append(script)
-                    elif (script['id'] in ['ssl-ja3-server',
-                                           'ssl-ja3-client',
-                                           'http-user-agent']):
+                    if script["id"] not in present_scripts:
+                        curport["scripts"].append(script)
+                    elif script["id"] in [
+                        "ssl-ja3-server",
+                        "ssl-ja3-client",
+                        "http-user-agent",
+                    ]:
                         # Merge scripts
-                        curscript = next(x for x in curport['scripts']
-                                         if x['id'] == script['id'])
-                        DBView.merge_scripts(curscript, script, script['id'])
-                if not curport['scripts']:
-                    del curport['scripts']
-                if 'service_name' in port:
-                    if 'service_name' not in curport:
+                        curscript = next(
+                            x
+                            for x in curport["scripts"]
+                            if x["id"] == script["id"]
+                        )
+                        DBView.merge_scripts(curscript, script, script["id"])
+                if not curport["scripts"]:
+                    del curport["scripts"]
+                if "service_name" in port:
+                    if "service_name" not in curport:
                         for key in port:
                             if key.startswith("service_"):
                                 curport[key] = port[key]
-                    elif port['service_name'] == curport['service_name']:
+                    elif port["service_name"] == curport["service_name"]:
                         # if the "old" record has information missing
                         # from the "new" record and information from
                         # both records is consistent, let's keep the
                         # "old" data.
                         for key in port:
                             if (
-                                    key.startswith("service_") and
-                                    key not in curport
+                                key.startswith("service_")
+                                and key not in curport
                             ):
                                 curport[key] = port[key]
             else:
-                ports[(port.get('protocol'), port['port'])] = port
-        rec["ports"] = sorted(viewvalues(ports), key=lambda port: (
-            port.get('protocol') or '~', port.get('port'),
-        ))
+                ports[(port.get("protocol"), port["port"])] = port
+        rec["ports"] = sorted(
+            viewvalues(ports),
+            key=lambda port: (port.get("protocol") or "~", port.get("port")),
+        )
         rec["openports"] = {}
         for record in [rec1, rec2]:
-            for proto in record.get('openports', {}):
-                if proto == 'count':
+            for proto in record.get("openports", {}):
+                if proto == "count":
                     continue
-                rec['openports'].setdefault(
-                    proto, {}).setdefault(
-                        'ports', set()).update(
-                            record['openports'][proto]['ports'])
-        if rec['openports']:
-            for proto in list(rec['openports']):
-                count = len(rec['openports'][proto]['ports'])
-                rec['openports'][proto]['count'] = count
-                rec['openports']['count'] = rec['openports'].get(
-                    'count', 0) + count
-                rec['openports'][proto]['ports'] = list(
-                    rec['openports'][proto]['ports'])
+                rec["openports"].setdefault(proto, {}).setdefault(
+                    "ports", set()
+                ).update(record["openports"][proto]["ports"])
+        if rec["openports"]:
+            for proto in list(rec["openports"]):
+                count = len(rec["openports"][proto]["ports"])
+                rec["openports"][proto]["count"] = count
+                rec["openports"]["count"] = (
+                    rec["openports"].get("count", 0) + count
+                )
+                rec["openports"][proto]["ports"] = list(
+                    rec["openports"][proto]["ports"]
+                )
         else:
-            rec['openports']["count"] = 0
+            rec["openports"]["count"] = 0
         for field in ["traces", "infos", "ports"]:
             if not rec[field]:
                 del rec[field]
@@ -1681,7 +1807,7 @@ class DBView(DBActive):
 
         """
         try:
-            flt = self.searchhost(host['addr'])
+            flt = self.searchhost(host["addr"])
             rec = next(self.get(flt))
         except StopIteration:
             # "Merge" mode but no record for that host, let's add
@@ -1700,24 +1826,21 @@ class DBView(DBActive):
 
     @classmethod
     def searchja3client(cls, value_or_hash=None, neg=False):
-        return cls._searchja3(value_or_hash, 'ssl-ja3-client', neg=neg)
+        return cls._searchja3(value_or_hash, "ssl-ja3-client", neg=neg)
 
     @classmethod
-    def searchja3server(cls, value_or_hash=None, client_value_or_hash=None,
-                        neg=False):
-        script_id = 'ssl-ja3-server'
+    def searchja3server(
+        cls, value_or_hash=None, client_value_or_hash=None, neg=False
+    ):
+        script_id = "ssl-ja3-server"
         if not client_value_or_hash:
             return cls._searchja3(value_or_hash, script_id, neg=neg)
         key_client, value_client = cls._ja3keyvalue(client_value_or_hash)
-        values = {'client.%s' % (key_client): value_client}
+        values = {"client.%s" % (key_client): value_client}
         if value_or_hash:
             key_srv, value_srv = cls._ja3keyvalue(value_or_hash)
             values[key_srv] = value_srv
-        return cls.searchscript(
-            name=script_id,
-            values=values,
-            neg=neg,
-        )
+        return cls.searchscript(name=script_id, values=values, neg=neg)
 
 
 class _RecInfo(object):
@@ -1730,20 +1853,20 @@ class _RecInfo(object):
 
     @property
     def data(self):
-        data = {'count': self.count}
+        data = {"count": self.count}
         if self.infos:
-            data['infos'] = self.infos
+            data["infos"] = self.infos
         return data
 
     def update_from_spec(self, spec):
-        self.count += spec.get('count')
-        firstseen = spec.get('firstseen')
+        self.count += spec.get("count")
+        firstseen = spec.get("firstseen")
         if firstseen is not None:
             if self.firstseen is None:
                 self.firstseen = firstseen
             else:
                 self.firstseen = min(self.firstseen, firstseen)
-        lastseen = spec.get('lastseen')
+        lastseen = spec.get("lastseen")
         if lastseen is not None:
             if self.lastseen is None:
                 self.lastseen = lastseen
@@ -1763,33 +1886,30 @@ class _RecInfo(object):
 
 
 class DBPassive(DB):
-
     def __init__(self):
         super(DBPassive, self).__init__()
-        self.argparser.add_argument('--sensor')
-        self.argparser.add_argument('--torcert', action='store_true')
-        self.argparser.add_argument('--dns')
-        self.argparser.add_argument('--dnssub')
-        self.argparser.add_argument('--cert')
-        self.argparser.add_argument('--basicauth', action='store_true')
-        self.argparser.add_argument('--auth', action='store_true')
-        self.argparser.add_argument('--java', action='store_true')
-        self.argparser.add_argument('--ftp', action='store_true')
-        self.argparser.add_argument('--pop', action='store_true')
-        self.argparser.add_argument('--timeago', type=int)
-        self.argparser.add_argument('--timeagonew', type=int)
+        self.argparser.add_argument("--sensor")
+        self.argparser.add_argument("--torcert", action="store_true")
+        self.argparser.add_argument("--dns")
+        self.argparser.add_argument("--dnssub")
+        self.argparser.add_argument("--cert")
+        self.argparser.add_argument("--basicauth", action="store_true")
+        self.argparser.add_argument("--auth", action="store_true")
+        self.argparser.add_argument("--java", action="store_true")
+        self.argparser.add_argument("--ftp", action="store_true")
+        self.argparser.add_argument("--pop", action="store_true")
+        self.argparser.add_argument("--timeago", type=int)
+        self.argparser.add_argument("--timeagonew", type=int)
         self.argparser.add_argument(
-            '--dnstype', metavar='DNS_TYPE',
-            help='Display results for specified DNS type.',
+            "--dnstype",
+            metavar="DNS_TYPE",
+            help="Display results for specified DNS type.",
         )
 
     def parse_args(self, args, flt=None):
         flt = super(DBPassive, self).parse_args(args, flt=flt)
         if args.sensor is not None:
-            flt = self.flt_and(
-                flt,
-                self.searchsensor(args.sensor)
-            )
+            flt = self.flt_and(flt, self.searchsensor(args.sensor))
         if args.torcert:
             flt = self.flt_and(flt, self.searchtorcert())
         if args.basicauth:
@@ -1797,10 +1917,7 @@ class DBPassive(DB):
         if args.auth:
             flt = self.flt_and(flt, self.searchhttpauth())
         if args.java:
-            flt = self.flt_and(
-                flt,
-                self.searchjavaua()
-            )
+            flt = self.flt_and(flt, self.searchjavaua())
         if args.ftp:
             flt = self.flt_and(flt, self.searchftpauth())
         if args.pop:
@@ -1808,17 +1925,16 @@ class DBPassive(DB):
         if args.dns is not None:
             flt = self.flt_and(
                 flt,
-                self.searchdns(utils.str2regexp(args.dns), subdomains=False)
+                self.searchdns(utils.str2regexp(args.dns), subdomains=False),
             )
         if args.dnssub is not None:
             flt = self.flt_and(
                 flt,
-                self.searchdns(utils.str2regexp(args.dnssub), subdomains=True)
+                self.searchdns(utils.str2regexp(args.dnssub), subdomains=True),
             )
         if args.cert is not None:
             flt = self.flt_and(
-                flt,
-                self.searchcertsubject(utils.str2regexp(args.cert)),
+                flt, self.searchcertsubject(utils.str2regexp(args.cert))
             )
         if args.timeago is not None:
             flt = self.flt_and(self.searchtimeago(args.timeago, new=False))
@@ -1831,8 +1947,9 @@ class DBPassive(DB):
     def insert_or_update(self, timestamp, spec, getinfos=None, lastseen=None):
         raise NotImplementedError
 
-    def insert_or_update_bulk(self, specs, getinfos=None,
-                              separated_timestamps=True):
+    def insert_or_update_bulk(
+        self, specs, getinfos=None, separated_timestamps=True
+    ):
         """Like `.insert_or_update()`, but `specs` parameter has to be an
         iterable of (timestamp, spec) values. This generic
         implementation does not use the bulk capacity of the
@@ -1847,12 +1964,16 @@ class DBPassive(DB):
             for spec in specs:
                 timestamp = spec.pop("firstseen", None)
                 lastseen = spec.pop("lastseen", None)
-                self.insert_or_update(timestamp or lastseen, spec,
-                                      getinfos=getinfos,
-                                      lastseen=lastseen or timestamp)
+                self.insert_or_update(
+                    timestamp or lastseen,
+                    spec,
+                    getinfos=getinfos,
+                    lastseen=lastseen or timestamp,
+                )
 
-    def insert_or_update_local_bulk(self, specs, getinfos=None,
-                                    separated_timestamps=True):
+    def insert_or_update_local_bulk(
+        self, specs, getinfos=None, separated_timestamps=True
+    ):
         """Like `.insert_or_update()`, but `specs` parameter has to be an
         iterable of (timestamp, spec) values. This generic
         implementation does not use the bulk capacity of the
@@ -1860,21 +1981,27 @@ class DBPassive(DB):
         its `.insert_or_update()` method.
 
         """
+
         def _bulk_execute(records):
             utils.LOGGER.debug("DB:local bulk upsert: %d", len(records))
             for spec, metadata in viewitems(records):
-                self.insert_or_update(metadata.firstseen,
-                                      dict(spec, **metadata.data),
-                                      getinfos=getinfos,
-                                      lastseen=metadata.lastseen)
+                self.insert_or_update(
+                    metadata.firstseen,
+                    dict(spec, **metadata.data),
+                    getinfos=getinfos,
+                    lastseen=metadata.lastseen,
+                )
+
         records = {}
-        utils.LOGGER.debug("DB: creating a local bulk upsert (%d records)",
-                           config.LOCAL_BATCH_SIZE)
+        utils.LOGGER.debug(
+            "DB: creating a local bulk upsert (%d records)",
+            config.LOCAL_BATCH_SIZE,
+        )
         if separated_timestamps:
             for timestamp, spec in specs:
                 if spec is None:
                     continue
-                infos = spec.pop('infos', None)
+                infos = spec.pop("infos", None)
                 spec = tuple((key, spec[key]) for key in sorted(spec))
                 records.setdefault(spec, _RecInfo(infos)).update(timestamp)
                 if len(records) >= config.LOCAL_BATCH_SIZE:
@@ -1884,13 +2011,15 @@ class DBPassive(DB):
             for spec in specs:
                 if spec is None:
                     continue
-                infos = spec.pop('infos', None)
+                infos = spec.pop("infos", None)
                 basespec = tuple(
-                    (key, spec[key]) for key in sorted(spec)
-                    if key not in ['count', 'firstseen', 'lastseen']
+                    (key, spec[key])
+                    for key in sorted(spec)
+                    if key not in ["count", "firstseen", "lastseen"]
                 )
-                records.setdefault(basespec,
-                                   _RecInfo(infos)).update_from_spec(spec)
+                records.setdefault(basespec, _RecInfo(infos)).update_from_spec(
+                    spec
+                )
                 if len(records) >= config.LOCAL_BATCH_SIZE:
                     _bulk_execute(records)
                     records = {}
@@ -1915,18 +2044,23 @@ class DBPassive(DB):
         """
         flt = []
         for start, stop in ranges.iter_ranges():
-            flt.append(cls.searchrange(cls.ip2internal(start),
-                                       cls.ip2internal(stop), neg=neg))
+            flt.append(
+                cls.searchrange(
+                    cls.ip2internal(start), cls.ip2internal(stop), neg=neg
+                )
+            )
         if flt:
             return (cls.flt_and if neg else cls.flt_or)(*flt)
         return cls.flt_empty if neg else cls.searchnonexistent()
 
     def searchtorcert(self):
         return self.searchcertsubject(
-            re.compile('^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$',
-                       flags=0),
-            issuer=re.compile('^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$',
-                              flags=0),
+            re.compile(
+                "^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$", flags=0
+            ),
+            issuer=re.compile(
+                "^commonName=www\\.[a-z2-7]{8,20}\\.(net|com)$", flags=0
+            ),
         )
 
     @staticmethod
@@ -1953,13 +2087,15 @@ and returns a generator."""
         """Create a new dns blacklist entry based on the value of
 the old dns entry"""
         spec = {}
-        dnsbl_val = old_spec['value']
-        spec['recontype'] = 'DNS_BLACKLIST'
-        spec['value'] = old_spec['addr']
-        spec['source'] = "%s-%s" % (dnsbl_val.split('.', 4)[4],
-                                    old_spec['source'])
-        spec['addr'] = '.'.join(dnsbl_val.split('.')[3::-1])
-        spec['count'] = old_spec['count']
+        dnsbl_val = old_spec["value"]
+        spec["recontype"] = "DNS_BLACKLIST"
+        spec["value"] = old_spec["addr"]
+        spec["source"] = "%s-%s" % (
+            dnsbl_val.split(".", 4)[4],
+            old_spec["source"],
+        )
+        spec["addr"] = ".".join(dnsbl_val.split(".")[3::-1])
+        spec["count"] = old_spec["count"]
         return spec
 
     def update_dns_blacklist(self):
@@ -1967,16 +2103,20 @@ the old dns entry"""
 This function inserts a new element in the database, corresponding to the
 old element and delete the existing one."""
 
-        flt = self.searchdns(list(config.DNS_BLACKLIST_DOMAINS),
-                             subdomains=True)
+        flt = self.searchdns(
+            list(config.DNS_BLACKLIST_DOMAINS), subdomains=True
+        )
         base = self.get(flt)
         for old_spec in base:
-            if any(old_spec['value'].endswith(dnsbl)
-                   for dnsbl in config.DNS_BLACKLIST_DOMAINS):
+            if any(
+                old_spec["value"].endswith(dnsbl)
+                for dnsbl in config.DNS_BLACKLIST_DOMAINS
+            ):
                 spec = self._update_dns_blacklist(old_spec)
-                self.insert_or_update(old_spec['firstseen'], spec,
-                                      lastseen=old_spec['lastseen'])
-                self.remove(old_spec['_id'])
+                self.insert_or_update(
+                    old_spec["firstseen"], spec, lastseen=old_spec["lastseen"]
+                )
+                self.remove(old_spec["_id"])
 
 
 class DBData(DB):
@@ -1984,9 +2124,11 @@ class DBData(DB):
 
     def infos_byip(self, addr):
         infos = {}
-        for infos_byip in [self.as_byip,
-                           self.country_byip,
-                           self.location_byip]:
+        for infos_byip in [
+            self.as_byip,
+            self.country_byip,
+            self.location_byip,
+        ]:
             infos.update(infos_byip(addr) or {})
         if infos:
             return infos
@@ -2000,36 +2142,44 @@ class DBData(DB):
 
 class LockError(RuntimeError):
     """A runtime error used when a lock cannot be acquired or released."""
+
     pass
 
 
 class DBAgent(DB):
     """Backend-independent code to handle agents-in-DB"""
 
-    def add_agent(self, masterid, host, remotepath,
-                  rsync=None, source=None, maxwaiting=60):
+    def add_agent(
+        self,
+        masterid,
+        host,
+        remotepath,
+        rsync=None,
+        source=None,
+        maxwaiting=60,
+    ):
         """Prepares an agent and adds it to the DB using
         `self._add_agent()`
 
         """
         if rsync is None:
             rsync = ["rsync"]
-        if not remotepath.endswith('/'):
-            remotepath += '/'
+        if not remotepath.endswith("/"):
+            remotepath += "/"
         if source is None:
-            source = (remotepath if host is None
-                      else "%s:%s" % (host, remotepath))
+            source = (
+                remotepath if host is None else "%s:%s" % (host, remotepath)
+            )
         master = self.get_master(masterid)
-        localpath = tempfile.mkdtemp(prefix="", dir=master['path'])
-        for dirname in ["input"] + [os.path.join("remote", dname)
-                                    for dname in ["input", "cur", "output"]]:
+        localpath = tempfile.mkdtemp(prefix="", dir=master["path"])
+        for dirname in ["input"] + [
+            os.path.join("remote", dname)
+            for dname in ["input", "cur", "output"]
+        ]:
             utils.makedirs(os.path.join(localpath, dirname))
         agent = {
             "host": host,
-            "path": {
-                "remote": remotepath,
-                "local": localpath,
-            },
+            "path": {"remote": remotepath, "local": localpath},
             "source": source,
             "rsync": rsync,
             "maxwaiting": maxwaiting,
@@ -2039,27 +2189,36 @@ class DBAgent(DB):
         }
         return self._add_agent(agent)
 
-    def add_agent_from_string(self, masterid, string,
-                              source=None, maxwaiting=60):
+    def add_agent_from_string(
+        self, masterid, string, source=None, maxwaiting=60
+    ):
         """Adds an agent from a description string of the form
         [tor:][hostname:]path.
 
         """
-        string = string.split(':', 1)
-        if string[0].lower() == 'tor':
-            string = string[1].split(':', 1)
-            rsync = ['torify', 'rsync']
+        string = string.split(":", 1)
+        if string[0].lower() == "tor":
+            string = string[1].split(":", 1)
+            rsync = ["torify", "rsync"]
         else:
             rsync = None
         if len(string) == 1:
-            return self.add_agent(masterid, None, string[0],
-                                  rsync=rsync,
-                                  source=source,
-                                  maxwaiting=maxwaiting)
-        return self.add_agent(masterid, string[0], string[1],
-                              rsync=rsync,
-                              source=source,
-                              maxwaiting=maxwaiting)
+            return self.add_agent(
+                masterid,
+                None,
+                string[0],
+                rsync=rsync,
+                source=source,
+                maxwaiting=maxwaiting,
+            )
+        return self.add_agent(
+            masterid,
+            string[0],
+            string[1],
+            rsync=rsync,
+            source=source,
+            maxwaiting=maxwaiting,
+        )
 
     def may_receive(self, agentid):
         """Returns the number of targets that can be added to an agent
@@ -2068,8 +2227,9 @@ class DBAgent(DB):
 
         """
         agent = self.get_agent(agentid)
-        return max(agent["maxwaiting"] - self.count_waiting_targets(agentid),
-                   0)
+        return max(
+            agent["maxwaiting"] - self.count_waiting_targets(agentid), 0
+        )
 
     def count_waiting_targets(self, agentid):
         """Returns the number of waiting targets an agent has.
@@ -2078,7 +2238,7 @@ class DBAgent(DB):
         agent = self.get_agent(agentid)
         return sum(
             len(os.listdir(self.get_local_path(agent, path)))
-            for path in ['input', os.path.join('remote', 'input')]
+            for path in ["input", os.path.join("remote", "input")]
         )
 
     def count_current_targets(self, agentid):
@@ -2087,25 +2247,26 @@ class DBAgent(DB):
         """
         agent = self.get_agent(agentid)
         return sum(
-            1 for fname in os.listdir(self.get_local_path(
-                agent,
-                os.path.join("remote", "cur")))
-            if fname.endswith('.xml')
+            1
+            for fname in os.listdir(
+                self.get_local_path(agent, os.path.join("remote", "cur"))
+            )
+            if fname.endswith(".xml")
         )
 
     @staticmethod
     def get_local_path(agent, dirname):
-        if not dirname.endswith('/'):
-            dirname += '/'
+        if not dirname.endswith("/"):
+            dirname += "/"
         return os.path.join(agent["path"]["local"], dirname)
 
     @staticmethod
     def get_remote_path(agent, dirname):
-        if dirname and not dirname.endswith('/'):
-            dirname += '/'
+        if dirname and not dirname.endswith("/"):
+            dirname += "/"
         return "%s%s" % (
-            '' if agent['host'] is None else "%s:" % agent['host'],
-            os.path.join(agent["path"]["remote"], dirname)
+            "" if agent["host"] is None else "%s:" % agent["host"],
+            os.path.join(agent["path"]["remote"], dirname),
         )
 
     def sync_all(self, masterid):
@@ -2114,49 +2275,59 @@ class DBAgent(DB):
 
     def sync(self, agentid):
         agent = self.get_agent(agentid)
-        master = self.get_master(agent['master'])
-        subprocess.call(agent['rsync'] + [
-            '-a',
-            self.get_local_path(agent, 'input'),
-            self.get_local_path(agent, os.path.join('remote', 'input'))
-        ])
-        subprocess.call(agent['rsync'] + [
-            '-a', '--remove-source-files',
-            self.get_local_path(agent, 'input'),
-            self.get_remote_path(agent, 'input')
-        ])
-        for dname in ['input', 'cur']:
-            subprocess.call(agent['rsync'] + [
-                '-a', '--delete',
-                self.get_remote_path(agent, dname),
-                self.get_local_path(agent, os.path.join('remote', dname))
-            ])
-        subprocess.call(agent['rsync'] + [
-            '-a', '--remove-source-files',
-            self.get_remote_path(agent, 'output'),
-            self.get_local_path(agent, os.path.join('remote', 'output'))
-        ])
-        outpath = self.get_local_path(agent, os.path.join('remote', 'output'))
+        master = self.get_master(agent["master"])
+        subprocess.call(
+            agent["rsync"]
+            + [
+                "-a",
+                self.get_local_path(agent, "input"),
+                self.get_local_path(agent, os.path.join("remote", "input")),
+            ]
+        )
+        subprocess.call(
+            agent["rsync"]
+            + [
+                "-a",
+                "--remove-source-files",
+                self.get_local_path(agent, "input"),
+                self.get_remote_path(agent, "input"),
+            ]
+        )
+        for dname in ["input", "cur"]:
+            subprocess.call(
+                agent["rsync"]
+                + [
+                    "-a",
+                    "--delete",
+                    self.get_remote_path(agent, dname),
+                    self.get_local_path(agent, os.path.join("remote", dname)),
+                ]
+            )
+        subprocess.call(
+            agent["rsync"]
+            + [
+                "-a",
+                "--remove-source-files",
+                self.get_remote_path(agent, "output"),
+                self.get_local_path(agent, os.path.join("remote", "output")),
+            ]
+        )
+        outpath = self.get_local_path(agent, os.path.join("remote", "output"))
         for fname in os.listdir(outpath):
-            scanid = fname.split('-', 1)[0]
+            scanid = fname.split("-", 1)[0]
             scan = self.get_scan(self.str2id(scanid))
             storedir = os.path.join(
-                master["path"],
-                "output",
-                scanid,
-                str(agentid),
+                master["path"], "output", scanid, str(agentid)
             )
             utils.makedirs(storedir)
-            fdesc = tempfile.NamedTemporaryFile(prefix="", suffix=".xml",
-                                                dir=storedir, delete=False)
-            shutil.move(
-                os.path.join(outpath, fname),
-                fdesc.name
+            fdesc = tempfile.NamedTemporaryFile(
+                prefix="", suffix=".xml", dir=storedir, delete=False
             )
+            shutil.move(os.path.join(outpath, fname), fdesc.name)
             self.globaldb.nmap.store_scan(
                 fdesc.name,
-                categories=scan['target_info']['categories'],
-                source=agent['source'],
+                categories=scan["target_info"]["categories"],
+                source=agent["source"],
             )
             self.incr_scan_results(self.str2id(scanid))
 
@@ -2166,7 +2337,7 @@ class DBAgent(DB):
                 self.feed(masterid, scanid)
             except LockError:
                 utils.LOGGER.error(
-                    'Lock error - is another daemon process running?',
+                    "Lock error - is another daemon process running?",
                     exc_info=True,
                 )
 
@@ -2175,13 +2346,13 @@ class DBAgent(DB):
         # TODO: handle "onhold" targets
         target = self.get_scan_target(scanid)
         try:
-            for agentid in scan['agents']:
-                if self.get_agent(agentid)['master'] == masterid:
+            for agentid in scan["agents"]:
+                if self.get_agent(agentid)["master"] == masterid:
                     for _ in range(self.may_receive(agentid)):
                         self.add_target(agentid, scanid, next(target))
         except StopIteration:
             # This scan is over, let's free its agents
-            for agentid in scan['agents']:
+            for agentid in scan["agents"]:
                 self.unassign_agent(agentid)
         self.update_scan_target(scanid, target)
         self.unlock_scan(scan)
@@ -2194,7 +2365,7 @@ class DBAgent(DB):
         except (ValueError, TypeError, struct.error):
             pass
         with tempfile.NamedTemporaryFile(
-            prefix=str(scanid) + '-',
+            prefix=str(scanid) + "-",
             dir=self.get_local_path(agent, "input"),
             delete=False,
         ) as fdesc:
@@ -2234,7 +2405,7 @@ class DBAgent(DB):
         identifier.
         """
         agent = self.get_agent(agentid)
-        master = self.get_master(agent['master'])
+        master = self.get_master(agent["master"])
         # stop adding targets
         self.unassign_agent(agentid, dont_reuse=True)
         # remove not-yet-sent targets
@@ -2273,7 +2444,7 @@ class DBAgent(DB):
             "target_info": target.infos,
             "agents": [],
             "results": 0,
-            "lock": None
+            "lock": None,
         }
         scanid = self._add_scan(scan)
         if assign_to_free_agents:
@@ -2304,16 +2475,16 @@ and raises a LockError on failure.
         """
         lockid = uuid.uuid1()
         scan = self._lock_scan(scanid, None, lockid.bytes)
-        if scan['lock'] is not None:
+        if scan["lock"] is not None:
             # This might be a bug in uuid module, Python 2 only
             #    File "/opt/python/2.6.9/lib/python2.6/uuid.py", line 145,
             #   in __init__
             #      int = long(('%02x'*16) % tuple(map(ord, bytes)), 16)
             # scan['lock'] = uuid.UUID(bytes=scan['lock'])
-            scan['lock'] = uuid.UUID(
-                hex=utils.encode_hex(scan['lock']).decode()
+            scan["lock"] = uuid.UUID(
+                hex=utils.encode_hex(scan["lock"]).decode()
             )
-        if scan['lock'] == lockid:
+        if scan["lock"] == lockid:
             return scan
 
     def unlock_scan(self, scan):
@@ -2321,11 +2492,13 @@ and raises a LockError on failure.
 LockError on failure.
 
         """
-        if scan.get('lock') is None:
-            raise LockError('Cannot release lock for %r: scan is not '
-                            'locked' % scan['_id'])
-        scan = self._lock_scan(scan['_id'], scan['lock'].bytes, None)
-        return scan['lock'] is None
+        if scan.get("lock") is None:
+            raise LockError(
+                "Cannot release lock for %r: scan is not "
+                "locked" % scan["_id"]
+            )
+        scan = self._lock_scan(scan["_id"], scan["lock"].bytes, None)
+        return scan["lock"] is None
 
     def _lock_scan(self, scanid, oldlockid, newlockid):
         raise NotImplementedError
@@ -2336,9 +2509,9 @@ LockError on failure.
     def get_scans(self):
         raise NotImplementedError
 
-    def assign_agent(self, agentid, scanid,
-                     only_if_unassigned=False,
-                     force=False):
+    def assign_agent(
+        self, agentid, scanid, only_if_unassigned=False, force=False
+    ):
         raise NotImplementedError
 
     def unassign_agent(self, agentid, dont_reuse=False):
@@ -2357,8 +2530,9 @@ LockError on failure.
         # We need to explicitly call self.to_binary() because with
         # MongoDB, Python 2.6 will store a unicode string that it
         # won't be able un pickle.loads() later
-        return self._update_scan_target(scanid,
-                                        self.to_binary(pickle.dumps(target)))
+        return self._update_scan_target(
+            scanid, self.to_binary(pickle.dumps(target))
+        )
 
     def _update_scan_target(self, scanid, target):
         raise NotImplementedError
@@ -2377,10 +2551,7 @@ LockError on failure.
         `self._add_master()`
 
         """
-        master = {
-            "hostname": hostname,
-            "path": path,
-        }
+        master = {"hostname": hostname, "path": path}
         return self._add_master(master)
 
     def _add_master(self, master):
@@ -2406,45 +2577,52 @@ class DBFlow(DB):
 
 def _mongodb_url2dbinfos(url):
     userinfo = {}
-    if '@' in url.netloc:
-        username = url.netloc[:url.netloc.index('@')]
-        if ':' in username:
-            userinfo = dict(zip(["username", "password"],
-                                [unquote(val) for val in
-                                 username.split(':', 1)]))
+    if "@" in url.netloc:
+        username = url.netloc[: url.netloc.index("@")]
+        if ":" in username:
+            userinfo = dict(
+                zip(
+                    ["username", "password"],
+                    [unquote(val) for val in username.split(":", 1)],
+                )
+            )
         else:
             username = unquote(username)
-            if username == 'GSSAPI':
+            if username == "GSSAPI":
                 import krbV
+
                 userinfo = {
-                    'username': (krbV
-                                 .default_context()
-                                 .default_ccache()
-                                 .principal().name),
-                    'mechanism': 'GSSAPI'}
-            elif '@' in username:
-                userinfo = {'username': username,
-                            'mechanism': 'GSSAPI'}
+                    "username": (
+                        krbV.default_context()
+                        .default_ccache()
+                        .principal()
+                        .name
+                    ),
+                    "mechanism": "GSSAPI",
+                }
+            elif "@" in username:
+                userinfo = {"username": username, "mechanism": "GSSAPI"}
             else:
-                userinfo = {'username': username}
-        hostname = url.netloc[url.netloc.index('@') + 1:]
+                userinfo = {"username": username}
+        hostname = url.netloc[url.netloc.index("@") + 1 :]
     else:
         hostname = url.netloc
     if not hostname:
         hostname = None
-    dbname = url.path.lstrip('/')
+    dbname = url.path.lstrip("/")
     if not dbname:
-        dbname = 'ivre'
-    params = dict(x.split('=', 1) if '=' in x else [x, None]
-                  for x in url.query.split('&') if x)
+        dbname = "ivre"
+    params = dict(
+        x.split("=", 1) if "=" in x else [x, None]
+        for x in url.query.split("&")
+        if x
+    )
     params.update(userinfo)
-    return (url.scheme,
-            (hostname, dbname),
-            params)
+    return (url.scheme, (hostname, dbname), params)
 
 
 def _neo4j_url2dbinfos(url):
-    return (url.scheme, (url._replace(scheme='http').geturl(),), {})
+    return (url.scheme, (url._replace(scheme="http").geturl(),), {})
 
 
 def _maxmind_url2dbinfos(url):
@@ -2486,8 +2664,12 @@ class MetaDB(object):
 
     def __init__(self, url=None, urls=None):
         try:
-            from ivre.db.mongo import (MongoDBNmap, MongoDBPassive,
-                                       MongoDBAgent, MongoDBView)
+            from ivre.db.mongo import (
+                MongoDBNmap,
+                MongoDBPassive,
+                MongoDBAgent,
+                MongoDBView,
+            )
         except ImportError:
             pass
         else:
@@ -2502,9 +2684,12 @@ class MetaDB(object):
         else:
             self.db_types["flow"]["neo4j"] = Neo4jDBFlow
         try:
-            from ivre.db.sql.postgres import (PostgresDBFlow, PostgresDBNmap,
-                                              PostgresDBPassive,
-                                              PostgresDBView)
+            from ivre.db.sql.postgres import (
+                PostgresDBFlow,
+                PostgresDBNmap,
+                PostgresDBPassive,
+                PostgresDBView,
+            )
         except ImportError:
             pass
         else:
@@ -2529,18 +2714,23 @@ class MetaDB(object):
         for datatype, dbtypes in viewitems(self.db_types):
             specificurl = urls.get(datatype, url)
             if specificurl is not None:
-                (spurlscheme,
-                 spurlargs,
-                 spurlkargs) = self.url2dbinfos(specificurl)
+                (spurlscheme, spurlargs, spurlkargs) = self.url2dbinfos(
+                    specificurl
+                )
                 if spurlscheme in dbtypes:
                     setattr(
                         self,
                         datatype,
-                        dbtypes[spurlscheme](*spurlargs, **spurlkargs))
+                        dbtypes[spurlscheme](*spurlargs, **spurlkargs),
+                    )
                     getattr(self, datatype).globaldb = self
 
 
 db = MetaDB(
     url=config.DB if hasattr(config, "DB") else None,
-    urls=dict([x[3:].lower(), getattr(config, x)]
-              for x in dir(config) if x.startswith('DB_')))
+    urls=dict(
+        [x[3:].lower(), getattr(config, x)]
+        for x in dir(config)
+        if x.startswith("DB_")
+    ),
+)

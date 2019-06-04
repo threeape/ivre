@@ -47,14 +47,9 @@ class NetFlow(CmdParser):
         ("flags", "%flg"),
     ]
     field_idx = dict((fld, idx) for idx, (fld, _) in enumerate(fields))
-    fmt = 'fmt:' + ','.join(fmt for _, fmt in fields)
-    units = {
-        'K': 1000,
-        'M': 1000000,
-        'G': 1000000000,
-        'T': 1000000000000,
-    }
-    timefmt = '%Y-%m-%d %H:%M:%S.%f'
+    fmt = "fmt:" + ",".join(fmt for _, fmt in fields)
+    units = {"K": 1000, "M": 1000000, "G": 1000000000, "T": 1000000000000}
+    timefmt = "%Y-%m-%d %H:%M:%S.%f"
 
     def __init__(self, fdesc, pcap_filter=None):
         """Creates the NetFlow object.
@@ -86,8 +81,10 @@ class NetFlow(CmdParser):
 
     @classmethod
     def parse_line(cls, line):
-        fields = dict((name[0], val.strip())
-                      for name, val in zip(cls.fields, line.split(",")))
+        fields = dict(
+            (name[0], val.strip())
+            for name, val in zip(cls.fields, line.split(","))
+        )
         fields["proto"] = fields["proto"].lower()
         srv_idx = None
         if fields["proto"] == "icmp":
@@ -95,8 +92,9 @@ class NetFlow(CmdParser):
             # flows, whereas switching to "8.0" makes it sane again.
             if fields["port2"] == "0.8":
                 fields["port2"] = "8.0"
-            fields["type"], fields["code"] = [int(x) for x in
-                                              fields.pop("port2").split(".")]
+            fields["type"], fields["code"] = [
+                int(x) for x in fields.pop("port2").split(".")
+            ]
             # ICMP 0 is an answer to ICMP 8
             if fields["type"] == 0:
                 fields["type"] = 8
@@ -108,13 +106,16 @@ class NetFlow(CmdParser):
             for field in ["port1", "port2"]:
                 fields[field] = int(fields[field])
         for field in ["start_time", "end_time"]:
-            fields[field] = datetime.datetime.strptime(fields[field],
-                                                       cls.timefmt)
+            fields[field] = datetime.datetime.strptime(
+                fields[field], cls.timefmt
+            )
         if srv_idx is None:
             srv_idx = (
-                1 if
-                utils.guess_srv_port(fields["port1"], fields["port2"],
-                                     proto=fields["proto"]) >= 0
+                1
+                if utils.guess_srv_port(
+                    fields["port1"], fields["port2"], proto=fields["proto"]
+                )
+                >= 0
                 else 2
             )
         cli_idx = 1 if srv_idx == 2 else 2
@@ -128,7 +129,7 @@ class NetFlow(CmdParser):
         elif "type" in fields:
             fields["flow_name"] = "%(proto)s %(type)s" % fields
         else:
-            fields["flow_name"] = fields['proto']
+            fields["flow_name"] = fields["proto"]
         fields["scbytes"] = cls.str2int(fields.pop("bytes%d" % cli_idx))
         fields["scpkts"] = cls.str2int(fields.pop("pkts%d" % cli_idx))
         fields["csbytes"] = cls.str2int(fields.pop("bytes%d" % srv_idx))

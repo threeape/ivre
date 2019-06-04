@@ -38,11 +38,22 @@ def main():
     print()
     print("Python %s" % sys.version)
     print()
-    print(' '.join(str(elt) for elt in os.uname()))
+    print(" ".join(str(elt) for elt in os.uname()))
     print()
     print("Dependencies:")
-    for module in ['Crypto', 'pymongo', 'py2neo', 'sqlalchemy', 'psycopg2',
-                   'krbV', 'PIL', 'MySQLdb', 'dbus', 'matplotlib', 'bottle']:
+    for module in [
+        "Crypto",
+        "pymongo",
+        "py2neo",
+        "sqlalchemy",
+        "psycopg2",
+        "krbV",
+        "PIL",
+        "MySQLdb",
+        "dbus",
+        "matplotlib",
+        "bottle",
+    ]:
         try:
             version = __import__(module).__version__
         except AttributeError:

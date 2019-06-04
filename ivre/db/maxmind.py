@@ -61,14 +61,23 @@ class MaxMindFileIter(object):
                 self.nextval = 0
             next_node_no = self.base.read_record(node_no, flag)
             if next_node_no == 0:
-                raise Exception('Invalid file format')
+                raise Exception("Invalid file format")
             elif next_node_no >= self.base.node_count:
-                pos = (next_node_no - self.base.node_count -
-                       self.base.DATA_SECTION_SEPARATOR_SIZE)
-                curvalinf = int(''.join(str(p) for p in self.current) +
-                                '0' * (128 - len(self.current)), 2)
-                curvalsup = int(''.join(str(p) for p in self.current) +
-                                '1' * (128 - len(self.current)), 2)
+                pos = (
+                    next_node_no
+                    - self.base.node_count
+                    - self.base.DATA_SECTION_SEPARATOR_SIZE
+                )
+                curvalinf = int(
+                    "".join(str(p) for p in self.current)
+                    + "0" * (128 - len(self.current)),
+                    2,
+                )
+                curvalsup = int(
+                    "".join(str(p) for p in self.current)
+                    + "1" * (128 - len(self.current)),
+                    2,
+                )
                 try:
                     while self.current.pop():
                         pass
@@ -76,8 +85,11 @@ class MaxMindFileIter(object):
                     self.nextval = None
                 else:
                     self.current.append(1)
-                return (curvalinf, curvalsup,
-                        self.base.decode(pos, self.base.data_section_start)[1])
+                return (
+                    curvalinf,
+                    curvalsup,
+                    self.base.decode(pos, self.base.data_section_start)[1],
+                )
             node_no = next_node_no
 
 
@@ -104,7 +116,7 @@ class MaxMindFile(object):
 
     """
 
-    METADATA_BEGIN_MARKER = b'\xab\xcd\xefMaxMind.com'
+    METADATA_BEGIN_MARKER = b"\xab\xcd\xefMaxMind.com"
     DATA_SECTION_SEPARATOR_SIZE = 16
     SIZE_BASE_VALUES = [0, 29, 285, 65821]
     POINTER_BASE_VALUES = [0, 0, 2048, 526336]
@@ -112,38 +124,37 @@ class MaxMindFile(object):
     def __init__(self, path):
         self.path = path
         self._data = None
-        pos = (self.data.rindex(self.METADATA_BEGIN_MARKER) +
-               len(self.METADATA_BEGIN_MARKER))
+        pos = self.data.rindex(self.METADATA_BEGIN_MARKER) + len(
+            self.METADATA_BEGIN_MARKER
+        )
         metadata = self.metadata = self.decode(pos, 0)[1]
-        self.ip_version = metadata['ip_version']
-        self.node_count = metadata['node_count']
-        self.node_byte_size = metadata['record_size'] * 2 // 8
+        self.ip_version = metadata["ip_version"]
+        self.node_count = metadata["node_count"]
+        self.node_byte_size = metadata["record_size"] * 2 // 8
         self.search_tree_size = self.node_count * self.node_byte_size
-        self.data_section_start = (self.search_tree_size +
-                                   self.DATA_SECTION_SEPARATOR_SIZE)
+        self.data_section_start = (
+            self.search_tree_size + self.DATA_SECTION_SEPARATOR_SIZE
+        )
 
     @property
     def data(self):
         if self._data is None:
-            with open(self.path, 'rb') as fdesc:
+            with open(self.path, "rb") as fdesc:
                 self._data = fdesc.read()
         return self._data
 
     def read_byte(self, pos):
-        return ord(self.data[pos:pos + 1])
+        return ord(self.data[pos : pos + 1])
 
     def read_value(self, pos, size):
         return reduce(
             lambda x, y: (x << 8) + y,
-            struct.unpack(
-                '%dB' % size,
-                self.data[pos:pos + size],
-            ),
+            struct.unpack("%dB" % size, self.data[pos : pos + size]),
             0,
         )
 
     def decode(self, pos, base_pos):
-        ctrl = ord(self.data[pos + base_pos:pos + base_pos + 1])
+        ctrl = ord(self.data[pos + base_pos : pos + base_pos + 1])
         pos += 1
         type_ = ctrl >> 5
         if type_ == 1:
@@ -151,14 +162,15 @@ class MaxMindFile(object):
             size = ((ctrl >> 3) & 0x3) + 1
             val1 = ctrl & 0x7
             val2 = self.read_value(pos + base_pos, size)
-            pointer = ((val1 << (8 * size)) + val2 +
-                       self.POINTER_BASE_VALUES[size])
+            pointer = (
+                (val1 << (8 * size)) + val2 + self.POINTER_BASE_VALUES[size]
+            )
             return pos + size, self.decode(pointer, base_pos)[1]
         if type_ == 0:
             # extended type
             type_ = 7 + self.read_byte(pos + base_pos)
             pos += 1
-        size = ctrl & 0x1f
+        size = ctrl & 0x1F
         if size >= 29:
             byte_size = size - 29 + 1
             val = self.read_value(pos + base_pos, byte_size)
@@ -166,21 +178,21 @@ class MaxMindFile(object):
             size = val + self.SIZE_BASE_VALUES[byte_size]
         if type_ == 2:
             # utf8
-            val = self.data[
-                pos + base_pos:pos + base_pos + size
-            ].decode('utf-8')
+            val = self.data[pos + base_pos : pos + base_pos + size].decode(
+                "utf-8"
+            )
             pos += size
         elif type_ in [3, 15]:
             # double
             # float
             val = struct.unpack(
-                {3: '>d', 15: '>f'}[type_],
-                self.data[pos + base_pos:pos + base_pos + size],
+                {3: ">d", 15: ">f"}[type_],
+                self.data[pos + base_pos : pos + base_pos + size],
             )[0]
             pos += size
         elif type_ == 4:
             # bytes
-            val = self.data[pos + base_pos:pos + base_pos + size]
+            val = self.data[pos + base_pos : pos + base_pos + size]
             pos += size
         elif type_ in [5, 6, 9, 10]:
             # unsigned 16-bit int
@@ -199,7 +211,7 @@ class MaxMindFile(object):
         elif type_ == 8:
             # signed 32-bit int
             v1 = struct.unpack(
-                '>i', self.data[pos + base_pos:pos + base_pos + size]
+                ">i", self.data[pos + base_pos : pos + base_pos + size]
             )[0]
             bits = size * 8
             val = (v1 & ~(1 << bits)) - (v1 & (1 << bits))
@@ -212,7 +224,7 @@ class MaxMindFile(object):
                 val.append(v)
         elif type_ == 12:
             # data cache container
-            raise Exception('TODO type == 12 (data cache container)')
+            raise Exception("TODO type == 12 (data cache container)")
         elif type_ == 13:
             # end marker
             val = None
@@ -221,25 +233,29 @@ class MaxMindFile(object):
             val = bool(size)
         else:
             # unknown
-            raise Exception('TODO type == %d (unknown)' % type_)
+            raise Exception("TODO type == %d (unknown)" % type_)
         return pos, val
 
     def read_record(self, node_no, flag):
         rec_byte_size = self.node_byte_size // 2
         pos = self.node_byte_size * node_no
-        middle = (self.read_byte(pos + rec_byte_size)
-                  if self.node_byte_size % 2 else 0)
+        middle = (
+            self.read_byte(pos + rec_byte_size)
+            if self.node_byte_size % 2
+            else 0
+        )
         if flag == 0:  # left
             val = self.read_value(pos, rec_byte_size)
-            val += ((middle & 0xf0) << 20) if middle else 0
+            val += ((middle & 0xF0) << 20) if middle else 0
         else:  # right
-            val = self.read_value(pos + self.node_byte_size - rec_byte_size,
-                                  rec_byte_size)
-            val += ((middle & 0xf) << 24) if middle else 0
+            val = self.read_value(
+                pos + self.node_byte_size - rec_byte_size, rec_byte_size
+            )
+            val += ((middle & 0xF) << 24) if middle else 0
         return val
 
     def __repr__(self):
-        return '<%s from %s>' % (self.__class__.__name__, self.path)
+        return "<%s from %s>" % (self.__class__.__name__, self.path)
 
     def lookup(self, ip):
         node_no = 0
@@ -248,14 +264,17 @@ class MaxMindFile(object):
             flag = (addr >> (127 - i)) & 1
             next_node_no = self.read_record(node_no, flag)
             if next_node_no == 0:
-                raise Exception('Invalid file format')
+                raise Exception("Invalid file format")
             elif next_node_no >= self.node_count:
-                pos = (next_node_no - self.node_count -
-                       self.DATA_SECTION_SEPARATOR_SIZE)
+                pos = (
+                    next_node_no
+                    - self.node_count
+                    - self.DATA_SECTION_SEPARATOR_SIZE
+                )
                 return self.decode(pos, self.data_section_start)[1]
             else:
                 node_no = next_node_no
-        raise Exception('Invalid file format')
+        raise Exception("Invalid file format")
 
     def __iter__(self):
         return MaxMindFileIter(self)
@@ -264,7 +283,7 @@ class MaxMindFile(object):
     def _get_fields(rec, fields):
         for field in fields:
             val = rec
-            for subfield in field.split('->'):
+            for subfield in field.split("->"):
                 try:
                     val = val[subfield]
                 except TypeError:
@@ -341,10 +360,10 @@ class MaxMindDBData(DBData):
 
     def reload_files(self):
         for fname in os.listdir(self.basepath):
-            if fname.endswith('.mmdb'):
+            if fname.endswith(".mmdb"):
                 subdb = MaxMindFile(os.path.join(self.basepath, fname))
-                name = subdb.metadata['database_type'].lower()
-                if name.startswith('geolite2-'):
+                name = subdb.metadata["database_type"].lower()
+                if name.startswith("geolite2-"):
                     name = name[9:]
                 setattr(self, "_db_%s" % name, subdb)
 
@@ -357,113 +376,123 @@ class MaxMindDBData(DBData):
     def location_byip(self, addr):
         raw = self.db_city.lookup(addr)
         result = {}
-        sub = raw.get('subdivisions')
+        sub = raw.get("subdivisions")
         if sub:
-            result['region_code'] = tuple(v.get('iso_code') for v in sub)
-            result['region_name'] = tuple(v.get('names', {}).get(self.LANG)
-                                          for v in sub)
-        sub = raw.get('continent')
+            result["region_code"] = tuple(v.get("iso_code") for v in sub)
+            result["region_name"] = tuple(
+                v.get("names", {}).get(self.LANG) for v in sub
+            )
+        sub = raw.get("continent")
         if sub:
-            value = sub.get('code')
+            value = sub.get("code")
             if value:
-                result['continent_code'] = value
-            value = sub.get('names', {}).get(self.LANG)
+                result["continent_code"] = value
+            value = sub.get("names", {}).get(self.LANG)
             if value:
-                result['continent_name'] = value
-        sub = raw.get('country')
+                result["continent_name"] = value
+        sub = raw.get("country")
         if sub:
-            value = sub.get('iso_code')
+            value = sub.get("iso_code")
             if value:
-                result['country_code'] = value
-            value = sub.get('names', {}).get(self.LANG)
+                result["country_code"] = value
+            value = sub.get("names", {}).get(self.LANG)
             if value:
-                result['country_name'] = value
-        sub = raw.get('registered_country')
+                result["country_name"] = value
+        sub = raw.get("registered_country")
         if sub:
-            value = sub.get('iso_code')
+            value = sub.get("iso_code")
             if value:
-                result['registered_country_code'] = value
-            value = sub.get('names', {}).get(self.LANG)
+                result["registered_country_code"] = value
+            value = sub.get("names", {}).get(self.LANG)
             if value:
-                result['registered_country_name'] = value
-        value = raw.get('city', {}).get('names', {}).get(self.LANG)
+                result["registered_country_name"] = value
+        value = raw.get("city", {}).get("names", {}).get(self.LANG)
         if value:
-            result['city'] = value
-        value = raw.get('postal', {}).get('code')
+            result["city"] = value
+        value = raw.get("postal", {}).get("code")
         if value:
-            result['postal_code'] = value
-        sub = raw.get('location')
+            result["postal_code"] = value
+        sub = raw.get("location")
         if sub:
             try:
-                result['coordinates'] = (sub['latitude'], sub['longitude'])
+                result["coordinates"] = (sub["latitude"], sub["longitude"])
             except KeyError:
                 pass
-            value = sub.get('accuracy_radius')
-            result['coordinates_accuracy_radius'] = value
+            value = sub.get("accuracy_radius")
+            result["coordinates_accuracy_radius"] = value
         if result:
             return result
 
     def country_byip(self, addr):
         result = {}
         raw = self.db_country.lookup(addr)
-        sub = raw.get('country')
+        sub = raw.get("country")
         if sub:
-            value = sub.get('iso_code')
+            value = sub.get("iso_code")
             if value:
-                result['country_code'] = value
-            value = sub.get('names', {}).get(self.LANG)
+                result["country_code"] = value
+            value = sub.get("names", {}).get(self.LANG)
             if value:
-                result['country_name'] = value
+                result["country_name"] = value
         return result
 
     def dump_as_ranges(self, fdesc):
         for data in self.db_asn.get_ranges(
-                ["autonomous_system_number"],
-                cond=lambda line: line[2] is not None,
+            ["autonomous_system_number"], cond=lambda line: line[2] is not None
         ):
-            if data[0] > 0xffffffff:  # only IPv4
+            if data[0] > 0xFFFFFFFF:  # only IPv4
                 break
-            fdesc.write('%d,%d,%d\n' % data)
+            fdesc.write("%d,%d,%d\n" % data)
 
     def dump_country_ranges(self, fdesc):
         for data in self.db_country.get_ranges(
-                ["country->iso_code"],
-                cond=lambda line: line[2] is not None,
+            ["country->iso_code"], cond=lambda line: line[2] is not None
         ):
-            if data[0] > 0xffffffff:  # only IPv4
+            if data[0] > 0xFFFFFFFF:  # only IPv4
                 break
-            fdesc.write('%d,%d,%s\n' % data)
+            fdesc.write("%d,%d,%s\n" % data)
 
     def dump_city_ranges(self, fdesc):
         for data in self.db_city.get_ranges(
-                ["country->iso_code", "subdivisions->0->iso_code",
-                 "city->names->%s" % config.GEOIP_LANG, "city->geoname_id"],
-                cond=lambda line: (line[2] is not None and
-                                   (line[3] is not None or
-                                    line[4] is not None)),
+            [
+                "country->iso_code",
+                "subdivisions->0->iso_code",
+                "city->names->%s" % config.GEOIP_LANG,
+                "city->geoname_id",
+            ],
+            cond=lambda line: (
+                line[2] is not None
+                and (line[3] is not None or line[4] is not None)
+            ),
         ):
-            if data[0] > 0xffffffff:  # only IPv4
+            if data[0] > 0xFFFFFFFF:  # only IPv4
                 break
-            fdesc.write('%d,%d,%s,%s,%s,%s\n' % (
-                data[:4] +
-                (utils.encode_b64((data[4] or
-                                   "").encode('utf-8')).decode('utf-8'),) +
-                data[5:]
-            ))
+            fdesc.write(
+                "%d,%d,%s,%s,%s,%s\n"
+                % (
+                    data[:4]
+                    + (
+                        utils.encode_b64(
+                            (data[4] or "").encode("utf-8")
+                        ).decode("utf-8"),
+                    )
+                    + data[5:]
+                )
+            )
 
     def build_dumps(self, force=False):
         for attr, func in [
-                ("db_asn", self.dump_as_ranges),
-                ("db_country", self.dump_country_ranges),
-                ("db_city", self.dump_city_ranges),
+            ("db_asn", self.dump_as_ranges),
+            ("db_country", self.dump_country_ranges),
+            ("db_city", self.dump_city_ranges),
         ]:
             try:
                 subdb = getattr(self, attr)
             except AttributeError:
                 continue
-            if not subdb.path.endswith('.mmdb'):
+            if not subdb.path.endswith(".mmdb"):
                 continue
-            csv_file = subdb.path[:-4] + 'dump-IPv4.csv'
+            csv_file = subdb.path[:-4] + "dump-IPv4.csv"
             if not force:
                 mmdb_mtime = os.path.getmtime(subdb.path)
                 try:
@@ -472,11 +501,16 @@ class MaxMindDBData(DBData):
                     pass
                 else:
                     if csv_mtime > mmdb_mtime:
-                        utils.LOGGER.info('Skipping %r since %r is newer',
-                                          os.path.basename(subdb.path),
-                                          os.path.basename(csv_file))
+                        utils.LOGGER.info(
+                            "Skipping %r since %r is newer",
+                            os.path.basename(subdb.path),
+                            os.path.basename(csv_file),
+                        )
                         continue
-            utils.LOGGER.info('Dumping %r to %r', os.path.basename(subdb.path),
-                              os.path.basename(csv_file))
-            with codecs.open(csv_file, mode="w", encoding='utf-8') as fdesc:
+            utils.LOGGER.info(
+                "Dumping %r to %r",
+                os.path.basename(subdb.path),
+                os.path.basename(csv_file),
+            )
+            with codecs.open(csv_file, mode="w", encoding="utf-8") as fdesc:
                 func(fdesc)

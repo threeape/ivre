@@ -157,13 +157,13 @@ FILTERS = {
     # This basic filter strips out comments, but one can add here more
     # sophisticaed filters (including network probes). This can be
     # useful to avoid time-consuming honeypots.
-    "none": "sed 's/ *#.*//'",
+    "none": "sed 's/ *#.*//'"
 }
 
 
 def build_agent(filtername="none", template="default"):
     """Build an agent shell script (returned as  a string)."""
     return AGENT_TEMPLATE % {
-        'filter': FILTERS[filtername],
-        'scan': nmapopt.build_nmap_commandline(template=template),
+        "filter": FILTERS[filtername],
+        "scan": nmapopt.build_nmap_commandline(template=template),
     }

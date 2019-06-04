@@ -25,12 +25,13 @@ AS number and country information.
 
 from __future__ import print_function
 import sys
+
 try:
     reload(sys)
 except NameError:
     pass
 else:
-    sys.setdefaultencoding('utf-8')
+    sys.setdefaultencoding("utf-8")
 
 
 from future.utils import viewitems
@@ -41,17 +42,26 @@ from ivre import geoiputils, utils
 
 
 def main():
-    parser, use_argparse = utils.create_argparser(__doc__, extraargs='ip')
+    parser, use_argparse = utils.create_argparser(__doc__, extraargs="ip")
     torun = []
-    parser.add_argument('--download', action='store_true',
-                        help='Fetch all data files.')
-    parser.add_argument('--import-all', action='store_true',
-                        help='Create all CSV files for reverse lookups.')
-    parser.add_argument('--quiet', "-q", action='store_true',
-                        help='Quiet mode.')
+    parser.add_argument(
+        "--download", action="store_true", help="Fetch all data files."
+    )
+    parser.add_argument(
+        "--import-all",
+        action="store_true",
+        help="Create all CSV files for reverse lookups.",
+    )
+    parser.add_argument(
+        "--quiet", "-q", action="store_true", help="Quiet mode."
+    )
     if use_argparse:
-        parser.add_argument('ip', nargs='*', metavar='IP',
-                            help='Display results for specified IP addresses.')
+        parser.add_argument(
+            "ip",
+            nargs="*",
+            metavar="IP",
+            help="Display results for specified IP addresses.",
+        )
     args = parser.parse_args()
     if args.download:
         geoiputils.download_all(verbose=not args.quiet)
@@ -67,4 +77,4 @@ def main():
         for info in [db.data.as_byip(addr), db.data.location_byip(addr)]:
             if info:
                 for key, value in viewitems(info):
-                    print('    %s %s' % (key, value))
+                    print("    %s %s" % (key, value))

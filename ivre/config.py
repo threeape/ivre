@@ -74,19 +74,26 @@ NMAP_SCAN_TEMPLATES = {
         # "ports": None,
         "host_timeout": "15m",  # default value: None
         "script_timeout": "2m",  # default value: None
-        "scripts_categories": ['default', 'discovery',
-                               'auth'],  # default value: None
-        "scripts_exclude": ['broadcast', 'brute', 'dos',
-                            'exploit', 'external', 'fuzzer',
-                            'intrusive'],  # default value: None
+        "scripts_categories": [
+            "default",
+            "discovery",
+            "auth",
+        ],  # default value: None
+        "scripts_exclude": [
+            "broadcast",
+            "brute",
+            "dos",
+            "exploit",
+            "external",
+            "fuzzer",
+            "intrusive",
+        ],  # default value: None
         # "scripts_force": None,
         # "extra_options": None,
     }
 }
 
-DNS_BLACKLIST_DOMAINS = set([
-    'zen.spamhaus.org',
-])
+DNS_BLACKLIST_DOMAINS = set(["zen.spamhaus.org"])
 
 # Example: to define an "aggressive" template that "inherits" from
 # the default template and runs more scripts with a more important
@@ -129,23 +136,17 @@ FLOW_TIME_PRECISION = 3600
 FLOW_TIME_FULL_RANGE = False
 
 IPDATA_URLS = {
-    'GeoLite2-City.tar.gz':
-    'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz',
-    'GeoLite2-City-CSV.zip':
-    'http://geolite.maxmind.com/download/geoip/database/GeoLite2-City-CSV.zip',
-    'GeoLite2-Country.tar.gz':
-    'http://geolite.maxmind.com/download/geoip/database/'
-    'GeoLite2-Country.tar.gz',
-    'GeoLite2-Country-CSV.zip':
-    'http://geolite.maxmind.com/download/geoip/database/'
-    'GeoLite2-Country-CSV.zip',
-    'GeoLite2-ASN.tar.gz':
-    'http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN.tar.gz',
-    'GeoLite2-ASN-CSV.zip':
-    'http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip',
-    'iso3166.csv': 'http://dev.maxmind.com/static/csv/codes/iso3166.csv',
+    "GeoLite2-City.tar.gz": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City.tar.gz",
+    "GeoLite2-City-CSV.zip": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-City-CSV.zip",
+    "GeoLite2-Country.tar.gz": "http://geolite.maxmind.com/download/geoip/database/"
+    "GeoLite2-Country.tar.gz",
+    "GeoLite2-Country-CSV.zip": "http://geolite.maxmind.com/download/geoip/database/"
+    "GeoLite2-Country-CSV.zip",
+    "GeoLite2-ASN.tar.gz": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN.tar.gz",
+    "GeoLite2-ASN-CSV.zip": "http://geolite.maxmind.com/download/geoip/database/GeoLite2-ASN-CSV.zip",
+    "iso3166.csv": "http://dev.maxmind.com/static/csv/codes/iso3166.csv",
     # This one is not from maxmind -- see http://thyme.apnic.net/
-    'BGP.raw': 'http://thyme.apnic.net/current/data-raw-table',
+    "BGP.raw": "http://thyme.apnic.net/current/data-raw-table",
 }
 
 GEOIP_LANG = "en"
@@ -193,10 +194,16 @@ WEB_SECRET = None
 def get_config_file(paths=None):
     """Generates (yields) the available config files, in the correct order."""
     if paths is None:
-        paths = [os.path.join(path, 'ivre.conf')
-                 for path in ['/etc', '/etc/ivre', '/usr/local/etc',
-                              '/usr/local/etc/ivre']]
-        paths.append(os.path.join(os.path.expanduser('~'), '.ivre.conf'))
+        paths = [
+            os.path.join(path, "ivre.conf")
+            for path in [
+                "/etc",
+                "/etc/ivre",
+                "/usr/local/etc",
+                "/usr/local/etc/ivre",
+            ]
+        ]
+        paths.append(os.path.join(os.path.expanduser("~"), ".ivre.conf"))
         if "IVRE_CONF" in os.environ:
             paths.append(os.environ["IVRE_CONF"])
     for path in paths:
@@ -205,7 +212,7 @@ def get_config_file(paths=None):
 
 
 for fname in get_config_file():
-    exec(compile(open(fname, "rb").read(), fname, 'exec'))
+    exec(compile(open(fname, "rb").read(), fname, "exec"))
 
 
 def guess_prefix(directory=None):
@@ -213,12 +220,13 @@ def guess_prefix(directory=None):
     installed.
 
     """
+
     def check_candidate(path, directory=None):
         """Auxiliary function that checks whether a particular path is a good
         candidate.
 
         """
-        candidate = os.path.join(path, 'share', 'ivre')
+        candidate = os.path.join(path, "share", "ivre")
         if directory is not None:
             candidate = os.path.join(candidate, directory)
         try:
@@ -226,31 +234,34 @@ def guess_prefix(directory=None):
                 return candidate
         except OSError:
             pass
-    if __file__.startswith('/'):
-        path = '/'
+
+    if __file__.startswith("/"):
+        path = "/"
         # absolute path
         for elt in __file__.split(os.path.sep)[1:]:
-            if elt in ['lib', 'lib32', 'lib64']:
+            if elt in ["lib", "lib32", "lib64"]:
                 candidate = check_candidate(path, directory=directory)
                 if candidate is not None:
                     return candidate
             path = os.path.join(path, elt)
-    for path in ['/usr', '/usr/local', '/opt', '/opt/ivre']:
+    for path in ["/usr", "/usr/local", "/opt", "/opt/ivre"]:
         candidate = check_candidate(path, directory=directory)
         if candidate is not None:
             return candidate
 
 
 def guess_share(soft):
-    for path in ['/usr/local/share/%s' % soft,
-                 '/opt/%s/share/%s' % (soft, soft),
-                 '/usr/share/%s' % soft]:
+    for path in [
+        "/usr/local/share/%s" % soft,
+        "/opt/%s/share/%s" % (soft, soft),
+        "/usr/share/%s" % soft,
+    ]:
         if os.path.isdir(path):
             return path
 
 
 if GEOIP_PATH is None:
-    GEOIP_PATH = guess_prefix('geoip')
+    GEOIP_PATH = guess_prefix("geoip")
 
 
 if DB_DATA is None and GEOIP_PATH is not None:
@@ -258,20 +269,20 @@ if DB_DATA is None and GEOIP_PATH is not None:
 
 
 if DATA_PATH is None:
-    DATA_PATH = guess_prefix('data')
+    DATA_PATH = guess_prefix("data")
 
 
 if WEB_STATIC_PATH is None:
-    WEB_STATIC_PATH = guess_prefix(directory='web/static')
+    WEB_STATIC_PATH = guess_prefix(directory="web/static")
 
 
 if WEB_DOKU_PATH is None:
-    WEB_DOKU_PATH = guess_prefix(directory='dokuwiki')
+    WEB_DOKU_PATH = guess_prefix(directory="dokuwiki")
 
 
 if HONEYD_IVRE_SCRIPTS_PATH is None and DATA_PATH is not None:
-    HONEYD_IVRE_SCRIPTS_PATH = os.path.join(DATA_PATH, 'honeyd')
+    HONEYD_IVRE_SCRIPTS_PATH = os.path.join(DATA_PATH, "honeyd")
 
 
 if NMAP_SHARE_PATH is None:
-    NMAP_SHARE_PATH = guess_share('nmap')
+    NMAP_SHARE_PATH = guess_share("nmap")

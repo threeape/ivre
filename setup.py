@@ -33,7 +33,7 @@ from distutils.command.install_lib import install_lib
 import os
 
 
-VERSION = __import__('ivre').VERSION
+VERSION = __import__("ivre").VERSION
 
 
 class smart_install_data(install_data):
@@ -41,12 +41,14 @@ class smart_install_data(install_data):
     configuration files location.
 
     """
+
     def run(self):
         # install files to /etc when target was /usr(/local)/etc
-        if self.install_dir.endswith('/usr') or \
-           self.install_dir.endswith('/usr/local'):
+        if self.install_dir.endswith("/usr") or self.install_dir.endswith(
+            "/usr/local"
+        ):
             self.data_files = [
-                ("/%s" % path if path.startswith('etc/') else path, files)
+                ("/%s" % path if path.startswith("etc/") else path, files)
                 for path, files in self.data_files
             ]
         return install_data.run(self)
@@ -57,17 +59,18 @@ class smart_install_lib(install_lib):
     version file.
 
     """
+
     def run(self):
         result = install_lib.run(self)
-        fullfname = os.path.join(self.install_dir, 'ivre', '__init__.py')
+        fullfname = os.path.join(self.install_dir, "ivre", "__init__.py")
         tmpfname = "%s.tmp" % fullfname
         stat = os.stat(fullfname)
         os.rename(fullfname, tmpfname)
-        with open(fullfname, 'w') as newf:
+        with open(fullfname, "w") as newf:
             with open(tmpfname) as oldf:
                 for line in oldf:
-                    if line.startswith('import '):
-                        newf.write('VERSION = %r\n' % VERSION)
+                    if line.startswith("import "):
+                        newf.write("VERSION = %r\n" % VERSION)
                         break
                     newf.write(line)
         os.chown(fullfname, stat.st_uid, stat.st_gid)
@@ -77,14 +80,14 @@ class smart_install_lib(install_lib):
 
 
 setup(
-    name='ivre',
+    name="ivre",
     version=VERSION,
-    author='Pierre LALET',
-    author_email='pierre@droids-corp.org',
-    url='https://ivre.rocks/',
-    download_url='https://github.com/cea-sec/ivre/tarball/master',
-    license='GPLv3+',
-    description='Network recon framework',
+    author="Pierre LALET",
+    author_email="pierre@droids-corp.org",
+    url="https://ivre.rocks/",
+    download_url="https://github.com/cea-sec/ivre/tarball/master",
+    license="GPLv3+",
+    description="Network recon framework",
     long_description="""
 IVRE is a set of tools aimed at gathering and exploiting network
 information.
@@ -92,8 +95,14 @@ information.
 It consists of a Python library, a Web UI, CLI tools and several
 specialized scripts.
 """,
-    keywords=["network", "network recon", "network cartography",
-              "nmap", "bro", "p0f"],
+    keywords=[
+        "network",
+        "network recon",
+        "network cartography",
+        "nmap",
+        "bro",
+        "p0f",
+    ],
     classifiers=[
         "Development Status :: 4 - Beta",
         "Environment :: Console",
@@ -120,195 +129,259 @@ specialized scripts.
         "Topic :: System :: Networking :: Monitoring",
         "Topic :: System :: Software Distribution",
     ],
-    python_requires='>=2.6, !=3.0.*, !=3.1.*, !=3.2.*, <4',
-    install_requires=[
-        'pycrypto',
-        'pymongo>=2.7.2',
-        'future',
-        'bottle',
-    ],
+    python_requires=">=2.6, !=3.0.*, !=3.1.*, !=3.2.*, <4",
+    install_requires=["pycrypto", "pymongo>=2.7.2", "future", "bottle"],
     extras_require={
-        'Flow': ["py2neo>=3,<4"],
-        'PostgreSQL': ["sqlalchemy", "psycopg2"],
-        'GSSAPI authentication': ["python-krbV"],
-        'Screenshots': ["PIL"],
-        'MediaWiki integration': ["MySQL-python"],
-        '3D traceroute graphs': ["dbus-python"],
-        'Plots': ["matplotlib"],
+        "Flow": ["py2neo>=3,<4"],
+        "PostgreSQL": ["sqlalchemy", "psycopg2"],
+        "GSSAPI authentication": ["python-krbV"],
+        "Screenshots": ["PIL"],
+        "MediaWiki integration": ["MySQL-python"],
+        "3D traceroute graphs": ["dbus-python"],
+        "Plots": ["matplotlib"],
     },
-    packages=['ivre', 'ivre/analyzer', 'ivre/db', 'ivre/db/sql', 'ivre/parser',
-              'ivre/tools', 'ivre/web'],
-    scripts=['bin/ivre'],
-    data_files=[
-        ('share/ivre/bro',
-         ['bro/passiverecon2db-ignore.example']),
-        ('share/ivre/bro/ivre',
-         ['bro/ivre/__load__.bro']),
-        ('share/ivre/bro/ivre/passiverecon',
-         ['bro/ivre/passiverecon/__load__.bro',
-          'bro/ivre/passiverecon/bare.bro',
-          'bro/ivre/passiverecon/ja3.bro']),
-        ('share/ivre/honeyd', ['data/.empty']),
-        ('share/ivre/geoip', ['data/.empty']),
-        ('share/ivre/data', ['data/ike-vendor-ids']),
-        ('share/ivre/data/honeyd', ['data/honeyd/sshd']),
-        ('share/ivre/docker', ['docker/Vagrantfile']),
-        ('share/ivre/docker/agent', ['docker/agent/Dockerfile']),
-        ('share/ivre/docker/base', ['docker/base/Dockerfile',
-                                    'docker/base/ivre.conf']),
-        ('share/ivre/docker/client', ['docker/client/Dockerfile']),
-        ('share/ivre/docker/db', ['docker/db/Dockerfile']),
-        ('share/ivre/docker/web', ['docker/web/Dockerfile',
-                                   'docker/web/doku-conf-acl.auth.php',
-                                   'docker/web/doku-conf-local.php',
-                                   'docker/web/doku-conf-plugins.local.php',
-                                   'docker/web/doku-conf-users.auth.php',
-                                   'docker/web/nginx-default-site']),
-        ('share/ivre/docker/web-apache',
-         ['docker/web-apache/Dockerfile',
-          'docker/web-apache/doku-conf-local.php']),
-        ('share/ivre/web/static',
-         ['web/static/index.html',
-          'web/static/compare.html',
-          'web/static/flow.html',
-          'web/static/report.html',
-          'web/static/upload.html',
-          'web/static/favicon-loading.gif',
-          'web/static/favicon.png',
-          'web/static/loading.gif',
-          'web/static/logo.png',
-          'web/static/cea.png',
-          'web/static/cea-white.png',
-          'web/static/world-110m.json']),
-        ('share/ivre/web/static/templates',
-         ['web/static/templates/filters.html',
-          'web/static/templates/graph-right-click.html',
-          'web/static/templates/menu.html',
-          'web/static/templates/messages.html',
-          'web/static/templates/progressbar.html',
-          'web/static/templates/query-builder.html',
-          'web/static/templates/view-cpes-only.html',
-          'web/static/templates/view-hosts.html',
-          'web/static/templates/view-screenshots-only.html',
-          'web/static/templates/view-scripts-only.html',
-          'web/static/templates/view-ports-only.html',
-          'web/static/templates/view-services-only.html',
-          'web/static/templates/view-vulnerabilities-only.html',
-          'web/static/templates/subview-cpes.html',
-          'web/static/templates/subview-graph-elt-details.html',
-          'web/static/templates/subview-host-summary.html',
-          'web/static/templates/subview-port-summary.html',
-          'web/static/templates/subview-ports-summary.html',
-          'web/static/templates/subview-service-summary.html',
-          'web/static/templates/topvalues.html']),
-        # IVRE
-        ('share/ivre/web/static/ivre',
-         ['web/static/ivre/flow.css',
-          'web/static/ivre/ivre.css',
-          'web/static/ivre/compare.js',
-          'web/static/ivre/controllers.js',
-          'web/static/ivre/filters.js',
-          'web/static/ivre/form-helpers.js',
-          'web/static/ivre/graph.js',
-          'web/static/ivre/ivre.js',
-          'web/static/ivre/params.js',
-          'web/static/ivre/tooltip.js',
-          'web/static/ivre/utils.js',
-          'web/static/ivre/content.js']),
-        ('share/ivre/web/static/ivre/flow',
-         ['web/static/ivre/flow/controllers.js']),
-        # Bootstrap
-        ('share/ivre/web/static/bs/css',
-         ['web/static/bs/css/bootstrap.css',
-          'web/static/bs/css/bootstrap.css.map']),
-        ('share/ivre/web/static/bs/js',
-         ['web/static/bs/js/bootstrap.js']),
-        ('share/ivre/web/static/bs/fonts',
-         ['web/static/bs/fonts/glyphicons-halflings-regular.woff',
-          'web/static/bs/fonts/glyphicons-halflings-regular.woff2']),
-        # jQuery
-        ('share/ivre/web/static/jq',
-         ['web/static/jq/jquery.js']),
-        # d3.js
-        ('share/ivre/web/static/d3/js',
-         ['web/static/d3/js/d3.v3.min.js',
-          'web/static/d3/js/topojson.v1.min.js']),
-        # AngularJS
-        ('share/ivre/web/static/an/js',
-         ['web/static/an/js/angular.js']),
-        # Linkurious/sigma.js
-        ('share/ivre/web/static/lk',
-         ['web/static/lk/plugins.min.js',
-          'web/static/lk/plugins.min.js.map',
-          'web/static/lk/sigma.min.js',
-          'web/static/lk/sigma.min.js.map']),
-        # flag-icon-css
-        ('share/ivre/web/static/fi/css',
-         ['web/static/fi/css/flag-icon.css']),
-        ('share/ivre/web/static/fi/flags/4x3',
-         [os.path.join('web/static/fi/flags/4x3/', x)
-          for x in os.listdir('web/static/fi/flags/4x3/')]),
-        # WSGI application
-        ('share/ivre/web/wsgi',
-         ['web/wsgi/app.wsgi']),
-        # Dokuwiki
-        ('share/ivre/dokuwiki',
-         ['web/dokuwiki/backlinks.patch']),
-        ('share/ivre/dokuwiki/doc',
-         ['web/dokuwiki/doc/agent.txt',
-          'web/dokuwiki/doc/docker.txt',
-          'web/dokuwiki/doc/faq.txt',
-          'web/dokuwiki/doc/fast-install-and-first-run.txt',
-          'web/dokuwiki/doc/flow.txt',
-          'web/dokuwiki/doc/install.txt',
-          'web/dokuwiki/doc/license-external.txt',
-          'web/dokuwiki/doc/license.txt',
-          'web/dokuwiki/doc/readme.txt',
-          'web/dokuwiki/doc/screenshots.txt',
-          'web/dokuwiki/doc/tests.txt',
-          'web/dokuwiki/doc/webui.txt']),
-        ('share/ivre/dokuwiki/media',
-         ['web/dokuwiki/media/logo.png']),
-        ('share/ivre/dokuwiki/media/doc/screenshots',
-         [os.path.join('doc/screenshots', x)
-          for x in os.listdir('doc/screenshots')]),
-        ('share/ivre/nmap_scripts',
-         ['nmap_scripts/http-screenshot.nse',
-          'nmap_scripts/mainframe-banner.nse',
-          'nmap_scripts/mainframe-screenshot.nse',
-          'nmap_scripts/rtsp-screenshot.nse',
-          'nmap_scripts/vnc-screenshot.nse',
-          'nmap_scripts/x11-screenshot.nse']),
-        ('share/ivre/nmap_scripts/patches',
-         ['nmap_scripts/patches/rtsp-url-brute.patch']),
-        ('share/doc/ivre',
-         ['doc/AGENT.md',
-          'doc/DOCKER.md',
-          'doc/FAQ.md',
-          'doc/FAST-INSTALL-AND-FIRST-RUN.md',
-          'doc/FLOW.md',
-          'doc/INSTALL.md',
-          'doc/LICENSE-EXTERNAL.md',
-          'doc/LICENSE.md',
-          'doc/README.md',
-          'doc/SCREENSHOTS.md',
-          'doc/TESTS.md',
-          'doc/WEBUI.md']),
-        ('share/doc/ivre/screenshots',
-         ['doc/screenshots/webui-details-heatmapzoom.png',
-          'doc/screenshots/webui-flow-details-flow.png',
-          'doc/screenshots/webui-flow-details-host.png',
-          'doc/screenshots/webui-flow-dns-halo.png',
-          'doc/screenshots/webui-flow-flow-map.png',
-          'doc/screenshots/webui-home-heatmap.png',
-          'doc/screenshots/webui-screenshots-solar-world.png',
-          'doc/screenshots/webui-tooltip-topenipvendors.png',
-          'doc/screenshots/webui-topproducts-80.png']),
-        ('etc/bash_completion.d', ['bash_completion/ivre']),
+    packages=[
+        "ivre",
+        "ivre/analyzer",
+        "ivre/db",
+        "ivre/db/sql",
+        "ivre/parser",
+        "ivre/tools",
+        "ivre/web",
     ],
-    package_data={
-        'ivre': ['VERSION'],
+    scripts=["bin/ivre"],
+    data_files=[
+        ("share/ivre/bro", ["bro/passiverecon2db-ignore.example"]),
+        ("share/ivre/bro/ivre", ["bro/ivre/__load__.bro"]),
+        (
+            "share/ivre/bro/ivre/passiverecon",
+            [
+                "bro/ivre/passiverecon/__load__.bro",
+                "bro/ivre/passiverecon/bare.bro",
+                "bro/ivre/passiverecon/ja3.bro",
+            ],
+        ),
+        ("share/ivre/honeyd", ["data/.empty"]),
+        ("share/ivre/geoip", ["data/.empty"]),
+        ("share/ivre/data", ["data/ike-vendor-ids"]),
+        ("share/ivre/data/honeyd", ["data/honeyd/sshd"]),
+        ("share/ivre/docker", ["docker/Vagrantfile"]),
+        ("share/ivre/docker/agent", ["docker/agent/Dockerfile"]),
+        (
+            "share/ivre/docker/base",
+            ["docker/base/Dockerfile", "docker/base/ivre.conf"],
+        ),
+        ("share/ivre/docker/client", ["docker/client/Dockerfile"]),
+        ("share/ivre/docker/db", ["docker/db/Dockerfile"]),
+        (
+            "share/ivre/docker/web",
+            [
+                "docker/web/Dockerfile",
+                "docker/web/doku-conf-acl.auth.php",
+                "docker/web/doku-conf-local.php",
+                "docker/web/doku-conf-plugins.local.php",
+                "docker/web/doku-conf-users.auth.php",
+                "docker/web/nginx-default-site",
+            ],
+        ),
+        (
+            "share/ivre/docker/web-apache",
+            [
+                "docker/web-apache/Dockerfile",
+                "docker/web-apache/doku-conf-local.php",
+            ],
+        ),
+        (
+            "share/ivre/web/static",
+            [
+                "web/static/index.html",
+                "web/static/compare.html",
+                "web/static/flow.html",
+                "web/static/report.html",
+                "web/static/upload.html",
+                "web/static/favicon-loading.gif",
+                "web/static/favicon.png",
+                "web/static/loading.gif",
+                "web/static/logo.png",
+                "web/static/cea.png",
+                "web/static/cea-white.png",
+                "web/static/world-110m.json",
+            ],
+        ),
+        (
+            "share/ivre/web/static/templates",
+            [
+                "web/static/templates/filters.html",
+                "web/static/templates/graph-right-click.html",
+                "web/static/templates/menu.html",
+                "web/static/templates/messages.html",
+                "web/static/templates/progressbar.html",
+                "web/static/templates/query-builder.html",
+                "web/static/templates/view-cpes-only.html",
+                "web/static/templates/view-hosts.html",
+                "web/static/templates/view-screenshots-only.html",
+                "web/static/templates/view-scripts-only.html",
+                "web/static/templates/view-ports-only.html",
+                "web/static/templates/view-services-only.html",
+                "web/static/templates/view-vulnerabilities-only.html",
+                "web/static/templates/subview-cpes.html",
+                "web/static/templates/subview-graph-elt-details.html",
+                "web/static/templates/subview-host-summary.html",
+                "web/static/templates/subview-port-summary.html",
+                "web/static/templates/subview-ports-summary.html",
+                "web/static/templates/subview-service-summary.html",
+                "web/static/templates/topvalues.html",
+            ],
+        ),
+        # IVRE
+        (
+            "share/ivre/web/static/ivre",
+            [
+                "web/static/ivre/flow.css",
+                "web/static/ivre/ivre.css",
+                "web/static/ivre/compare.js",
+                "web/static/ivre/controllers.js",
+                "web/static/ivre/filters.js",
+                "web/static/ivre/form-helpers.js",
+                "web/static/ivre/graph.js",
+                "web/static/ivre/ivre.js",
+                "web/static/ivre/params.js",
+                "web/static/ivre/tooltip.js",
+                "web/static/ivre/utils.js",
+                "web/static/ivre/content.js",
+            ],
+        ),
+        (
+            "share/ivre/web/static/ivre/flow",
+            ["web/static/ivre/flow/controllers.js"],
+        ),
+        # Bootstrap
+        (
+            "share/ivre/web/static/bs/css",
+            [
+                "web/static/bs/css/bootstrap.css",
+                "web/static/bs/css/bootstrap.css.map",
+            ],
+        ),
+        ("share/ivre/web/static/bs/js", ["web/static/bs/js/bootstrap.js"]),
+        (
+            "share/ivre/web/static/bs/fonts",
+            [
+                "web/static/bs/fonts/glyphicons-halflings-regular.woff",
+                "web/static/bs/fonts/glyphicons-halflings-regular.woff2",
+            ],
+        ),
+        # jQuery
+        ("share/ivre/web/static/jq", ["web/static/jq/jquery.js"]),
+        # d3.js
+        (
+            "share/ivre/web/static/d3/js",
+            [
+                "web/static/d3/js/d3.v3.min.js",
+                "web/static/d3/js/topojson.v1.min.js",
+            ],
+        ),
+        # AngularJS
+        ("share/ivre/web/static/an/js", ["web/static/an/js/angular.js"]),
+        # Linkurious/sigma.js
+        (
+            "share/ivre/web/static/lk",
+            [
+                "web/static/lk/plugins.min.js",
+                "web/static/lk/plugins.min.js.map",
+                "web/static/lk/sigma.min.js",
+                "web/static/lk/sigma.min.js.map",
+            ],
+        ),
+        # flag-icon-css
+        ("share/ivre/web/static/fi/css", ["web/static/fi/css/flag-icon.css"]),
+        (
+            "share/ivre/web/static/fi/flags/4x3",
+            [
+                os.path.join("web/static/fi/flags/4x3/", x)
+                for x in os.listdir("web/static/fi/flags/4x3/")
+            ],
+        ),
+        # WSGI application
+        ("share/ivre/web/wsgi", ["web/wsgi/app.wsgi"]),
+        # Dokuwiki
+        ("share/ivre/dokuwiki", ["web/dokuwiki/backlinks.patch"]),
+        (
+            "share/ivre/dokuwiki/doc",
+            [
+                "web/dokuwiki/doc/agent.txt",
+                "web/dokuwiki/doc/docker.txt",
+                "web/dokuwiki/doc/faq.txt",
+                "web/dokuwiki/doc/fast-install-and-first-run.txt",
+                "web/dokuwiki/doc/flow.txt",
+                "web/dokuwiki/doc/install.txt",
+                "web/dokuwiki/doc/license-external.txt",
+                "web/dokuwiki/doc/license.txt",
+                "web/dokuwiki/doc/readme.txt",
+                "web/dokuwiki/doc/screenshots.txt",
+                "web/dokuwiki/doc/tests.txt",
+                "web/dokuwiki/doc/webui.txt",
+            ],
+        ),
+        ("share/ivre/dokuwiki/media", ["web/dokuwiki/media/logo.png"]),
+        (
+            "share/ivre/dokuwiki/media/doc/screenshots",
+            [
+                os.path.join("doc/screenshots", x)
+                for x in os.listdir("doc/screenshots")
+            ],
+        ),
+        (
+            "share/ivre/nmap_scripts",
+            [
+                "nmap_scripts/http-screenshot.nse",
+                "nmap_scripts/mainframe-banner.nse",
+                "nmap_scripts/mainframe-screenshot.nse",
+                "nmap_scripts/rtsp-screenshot.nse",
+                "nmap_scripts/vnc-screenshot.nse",
+                "nmap_scripts/x11-screenshot.nse",
+            ],
+        ),
+        (
+            "share/ivre/nmap_scripts/patches",
+            ["nmap_scripts/patches/rtsp-url-brute.patch"],
+        ),
+        (
+            "share/doc/ivre",
+            [
+                "doc/AGENT.md",
+                "doc/DOCKER.md",
+                "doc/FAQ.md",
+                "doc/FAST-INSTALL-AND-FIRST-RUN.md",
+                "doc/FLOW.md",
+                "doc/INSTALL.md",
+                "doc/LICENSE-EXTERNAL.md",
+                "doc/LICENSE.md",
+                "doc/README.md",
+                "doc/SCREENSHOTS.md",
+                "doc/TESTS.md",
+                "doc/WEBUI.md",
+            ],
+        ),
+        (
+            "share/doc/ivre/screenshots",
+            [
+                "doc/screenshots/webui-details-heatmapzoom.png",
+                "doc/screenshots/webui-flow-details-flow.png",
+                "doc/screenshots/webui-flow-details-host.png",
+                "doc/screenshots/webui-flow-dns-halo.png",
+                "doc/screenshots/webui-flow-flow-map.png",
+                "doc/screenshots/webui-home-heatmap.png",
+                "doc/screenshots/webui-screenshots-solar-world.png",
+                "doc/screenshots/webui-tooltip-topenipvendors.png",
+                "doc/screenshots/webui-topproducts-80.png",
+            ],
+        ),
+        ("etc/bash_completion.d", ["bash_completion/ivre"]),
+    ],
+    package_data={"ivre": ["VERSION"]},
+    cmdclass={
+        "install_data": smart_install_data,
+        "install_lib": smart_install_lib,
     },
-    cmdclass={'install_data': smart_install_data,
-              'install_lib': smart_install_lib},
 )

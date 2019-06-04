@@ -29,10 +29,12 @@ def main():
     """Update the flow database from Airodump CSV files"""
     parser, use_argparse = utils.create_argparser(__doc__, extraargs="files")
     if use_argparse:
-        parser.add_argument("files", nargs='*', metavar='FILE',
-                            help="Airodump CSV files")
-    parser.add_argument("-v", "--verbose", help="verbose mode",
-                        action="store_true")
+        parser.add_argument(
+            "files", nargs="*", metavar="FILE", help="Airodump CSV files"
+        )
+    parser.add_argument(
+        "-v", "--verbose", help="verbose mode", action="store_true"
+    )
     args = parser.parse_args()
 
     if args.verbose:
@@ -51,10 +53,13 @@ def main():
                     del line["Probed ESSIDs"]
                     line["start_time"] = line.pop("First time seen")
                     line["end_time"] = line.pop("Last time seen")
-                    line["packets"] = line.pop('# packets')
+                    line["packets"] = line.pop("# packets")
                     # TODO FIX MEAN (en plus de MAX et MEAN)
                     db.flow.add_flow(
-                        line, "WLAN", {}, counters=["packets"],
+                        line,
+                        "WLAN",
+                        {},
+                        counters=["packets"],
                         srcnode=("Intel:Mac", {"addr": "{src}"}),
                         dstnode=("Intel:Wlan", {"addr": "{dst}"}),
                     )
