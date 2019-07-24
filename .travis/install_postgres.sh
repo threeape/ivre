@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with IVRE. If not, see <http://www.gnu.org/licenses/>.
 
-wget -q "http://get.enterprisedb.com/postgresql/postgresql-${POSTGRES_VERSION}-1-linux-x64-binaries.tar.gz" -O - | tar zxf -
+wget "http://get.enterprisedb.com/postgresql/postgresql-${POSTGRES_VERSION}-1-linux-x64-binaries.tar.gz" -O - | tar zxf -
 export PATH="`pwd`/pgsql/bin:$PATH"
 if [ -z "$LD_LIBRARY_PATH" ]; then
     export LD_LIBRARY_PATH="`pwd`/pgsql/lib"

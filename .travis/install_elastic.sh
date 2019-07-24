@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with IVRE. If not, see <http://www.gnu.org/licenses/>.
 
-wget -q "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ELASTIC_VERSION-linux-x86_64.tar.gz" -O - | tar zxf -
+wget "https://artifacts.elastic.co/downloads/elasticsearch/elasticsearch-$ELASTIC_VERSION-linux-x86_64.tar.gz" -O - | tar zxf -
 export PATH="`pwd`/elasticsearch-$ELASTIC_VERSION/bin:$PATH"
 PIP_INSTALL_OPTIONS=""
 mkdir -p data/db

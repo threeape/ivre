@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with IVRE. If not, see <http://www.gnu.org/licenses/>.
 
-wget -q "https://neo4j.com/artifact.php?name=neo4j-community-${NEO4J_VERSION}-unix.tar.gz" -O - | tar zxf -
+wget "https://neo4j.com/artifact.php?name=neo4j-community-${NEO4J_VERSION}-unix.tar.gz" -O - | tar zxf -
 export PATH="`pwd`/neo4j-community-${NEO4J_VERSION}/bin:$PATH"
 PIP_INSTALL_OPTIONS=""
 rmdir "`pwd`/neo4j-community-${NEO4J_VERSION}/data/databases"
