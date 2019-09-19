@@ -177,7 +177,8 @@ before_script:
   ## Nmap IPv6 scans
   - wget -q https://raw.githubusercontent.com/logstash-plugins/logstash-codec-nmap/master/spec/fixtures/ipv6_all.xml -O "tests/samples/ipv6_all.xml"
   ## PCAP files from ivre.rocks
-  - wget -q --no-check-certificate -O - https://ivre.rocks/data/tests/dnsbl.pcap.bz2 | bunzip2 > tests/samples/dnsbl.pcap
+  #- wget -q --no-check-certificate -O - https://ivre.rocks/data/tests/dnsbl.pcap.bz2 | bunzip2 > tests/samples/dnsbl.pcap
+  - wget -q --no-check-certificate -O - https://ivre.rocks/data/tests/dnsbl-new.pcap.bz2 | bunzip2 > tests/samples/dnsbl.pcap
   ## nfcapd files from ivre.rocks
   - wget -q --no-check-certificate -O - https://ivre.rocks/data/tests/nfcapd > tests/samples/nfcapd
   ## PCAP files from the Wireshark project
