@@ -52,6 +52,7 @@ python:
   - 3.5
   - 3.6
   - 3.7
+  - 3.8
 
 matrix:
   include:
@@ -115,6 +116,10 @@ matrix:
     - python: 3.3
       dist: trusty
       env: DB=maxmind
+  exclude:
+    - python: 3.8
+      dist: xenial
+      env: DB=neo4j NEO4J_VERSION=3.5.1
 
 # PhantomJS is supposed to be installed
 # (https://docs.travis-ci.com/user/gui-and-headless-browsers/#Using-PhantomJS),
