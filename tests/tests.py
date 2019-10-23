@@ -2440,6 +2440,7 @@ purposes to feed Elasticsearch view.
         # Init DB
         res, out, err = RUN(["ivre", "flowcli", "--init"],
                             stdin=open(os.devnull))
+        print("XXX", repr(res), repr(out), repr(err))
         self.assertEqual(res, 0)
         self.assertTrue(not out)
         self.assertTrue(not err)
