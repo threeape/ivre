@@ -4,7 +4,7 @@
 # Alpine Linux package file
 
 # This file is part of IVRE.
-# Copyright 2011 - 2018 Pierre LALET <pierre.lalet@cea.fr>
+# Copyright 2011 - 2020 Pierre LALET <pierre@droids-corp.org>
 #
 # IVRE is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -31,7 +31,7 @@ depends="python py-crypto py-mongo py-future py-bottle"
 makedepends="py-setuptools"
 install=""
 subpackages="$pkgname-doc"
-source="https://github.com/cea-sec/$pkgname/archive/$_branch.tar.gz"
+source="https://github.com/ivre/$pkgname/archive/$_branch.tar.gz"
 builddir="$srcdir/"
 
 build() {

@@ -1,5 +1,5 @@
 # This file is part of IVRE.
-# Copyright 2011 - 2019 Pierre LALET <pierre.lalet@cea.fr>
+# Copyright 2011 - 2020 Pierre LALET <pierre@droids-corp.org>
 #
 # IVRE is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -26,7 +26,7 @@ RUN apt-get -qy install python-pymongo python-crypto python-setuptools \
     python-future python-bottle ca-certificates
 
 # IVRE
-RUN apt-get -qy install git && git clone https://github.com/cea-sec/ivre && \
+RUN apt-get -qy install git && git clone https://github.com/ivre/ivre && \
     cd ivre/ && python setup.py build && python setup.py install && \
     apt-get -qy --purge autoremove git && cd ../ && rm -rf ivre/
 

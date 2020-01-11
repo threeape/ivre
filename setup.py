@@ -1,7 +1,7 @@
 #! /usr/bin/env python
 
 # This file is part of IVRE.
-# Copyright 2011 - 2019 Pierre LALET <pierre.lalet@cea.fr>
+# Copyright 2011 - 2020 Pierre LALET <pierre@droids-corp.org>
 #
 # IVRE is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 
 """
 This module is part of IVRE.
-Copyright 2011 - 2019 Pierre LALET <pierre.lalet@cea.fr>
+Copyright 2011 - 2020 Pierre LALET <pierre@droids-corp.org>
 
 Standard setup.py file. Run
 
@@ -119,7 +119,7 @@ setup(
     author='Pierre LALET',
     author_email='pierre@droids-corp.org',
     url='https://ivre.rocks/',
-    download_url='https://github.com/cea-sec/ivre/tarball/master',
+    download_url='https://github.com/ivre/ivre/tarball/master',
     license='GPLv3+',
     description='Network recon framework',
     long_description=long_description,
@@ -223,6 +223,8 @@ setup(
           'web/static/favicon.png',
           'web/static/loading.gif',
           'web/static/logo.png',
+          'web/static/anssi.png',
+          'web/static/anssi-white.png',
           'web/static/cea.png',
           'web/static/cea-white.png',
           'web/static/world-110m.json']),

@@ -28,7 +28,7 @@ Install
 
    $ sudo apt-get -y install mongodb python-pymongo python-crypto \
    >   python-future python-bottle apache2 libapache2-mod-wsgi dokuwiki
-   $ git clone https://github.com/cea-sec/ivre
+   $ git clone https://github.com/ivre/ivre
    $ cd ivre
    $ python setup.py build
    $ sudo python setup.py install
