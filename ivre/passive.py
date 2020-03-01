@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 
 # This file is part of IVRE.
-# Copyright 2011 - 2019 Pierre LALET <pierre.lalet@cea.fr>
+# Copyright 2011 - 2020 Pierre LALET <pierre@droids-corp.org>
 #
 # IVRE is free software: you can redistribute it and/or modify it
 # under the terms of the GNU General Public License as published by
@@ -17,11 +17,8 @@
 # You should have received a copy of the GNU General Public License
 # along with IVRE. If not, see <http://www.gnu.org/licenses/>.
 
-"""
-This module is part of IVRE.
-Copyright 2011 - 2018 Pierre LALET <pierre.lalet@cea.fr>
+"""This sub-module contains functions used for passive recon.
 
-This sub-module contains functions used for passive recon.
 """
 
 
@@ -37,7 +34,7 @@ from future.utils import viewitems
 from ivre import utils, config
 
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 
 # p0f specific
 

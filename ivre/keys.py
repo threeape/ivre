@@ -286,12 +286,13 @@ class SSLRsaNmapKey(SSLNmapKey, RSAKey):
 
     def getkeys(self, host):
         for script in self.getscripts(host):
-            key = script["script"][self.scriptid]['pubkey']
-            yield Key(host['addr'], script["port"], "ssl", key['type'],
-                      key['bits'],
-                      RSA.construct((long(key['modulus']),
-                                     long(key['exponent']),)),
-                      utils.decode_hex(script["script"][self.scriptid]['md5']))
+            for cert in script["script"].get(self.scriptid, []):
+                key = cert['pubkey']
+                yield Key(host['addr'], script["port"], "ssl", key['type'],
+                          key['bits'],
+                          RSA.construct((long(key['modulus']),
+                                         long(key['exponent']),)),
+                          utils.decode_hex(cert['md5']))
 
 
 class SSHRsaNmapKey(SSHNmapKey, RSAKey):
